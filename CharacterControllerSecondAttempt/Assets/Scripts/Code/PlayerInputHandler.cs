@@ -107,7 +107,8 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
             _gravityDirection = (_gravityFocus.position - transform.position).normalized;
         }
 
-        Vector3 appliedGravity = _gravityMagnitude * _gravityDirection;
+        //Vector3 appliedGravity = _gravityMagnitude * _gravityDirection;
+        Vector3 appliedGravity = Vector3.zero;
 
         // Takes in a transform direction from the camera and converts into a basis vector for horizontal movement
         Vector3 SetBasisFromCamera(Vector3 cameraBasis)

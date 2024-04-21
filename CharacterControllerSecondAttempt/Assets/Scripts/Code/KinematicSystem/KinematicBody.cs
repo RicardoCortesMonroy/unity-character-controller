@@ -25,6 +25,7 @@ public class KinematicBody : MonoBehaviour
 
     // Mover variables
     private KinematicMover _currentMover;
+    private Vector3 _moverDisplacement;
 
     [SerializeField] private TextMeshProUGUI _debug;
     private string _debugText;
@@ -140,6 +141,11 @@ public class KinematicBody : MonoBehaviour
 #endif
     }
 
+    public void RegisterMoverDisplacement(Vector3 displacement)
+    {
+        _moverDisplacement += displacement;
+    }
+
     public void UpdateCurrentPositionAndRotation()
     {
         _currentPosition = _transientPosition;
@@ -191,7 +197,7 @@ public class KinematicBody : MonoBehaviour
         if (!IsOnStableGround || IsImpulseThisFrame) ForceVelocity.ApplyAcceleration();
 
     }
-
+    
     public void Simulate()
     {
         #region Handle rotation via the lookToVector
@@ -595,4 +601,5 @@ public class KinematicBody : MonoBehaviour
             Gizmos.DrawWireSphere(_postSweepPosition + _collider.radius * _localUpwards, _collider.radius + _surfaceDetectionRange);
         }
     }
+
 }

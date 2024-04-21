@@ -48,6 +48,8 @@ public class KinematicSystem : MonoBehaviour
 
     private void Start()
     {
+
+
         foreach (var body in _bodies.Values)
         {
             body.CollisionCheck();
@@ -63,13 +65,16 @@ public class KinematicSystem : MonoBehaviour
         foreach (var mover in _movers.Values)
         {
             mover.CalculateVelocity();
+
+            if(mover.UseCCD) mover.SweepForBodies();
+            
             mover.Simulate();
             mover.ApplyTransientTransform();
         }
         foreach (var body in _bodies.Values)
         {
             body.UpdateCurrentPositionAndRotation();
-            //body.CollisionCheck(depenetrateOnly: true);
+
             body.CalculateVelocity();
             body.Simulate();
             body.CollisionCheck();

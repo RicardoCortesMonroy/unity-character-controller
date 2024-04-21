@@ -2,17 +2,33 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
+using UnityEditor.PackageManager;
 using UnityEngine;
+
+public struct BoxCastInfo
+{
+    public Vector3 Origin;
+    public Vector3 Direction;
+    public float Distance;
+    public Color Color;
+}
 
 [RequireComponent(typeof(IKinematicMoverController))]
 public class KinematicMover : MonoBehaviour
 {
+
     public readonly static string Tag = "KinematicMover";
 
     [HideInInspector] public int ColliderInstanceID;
 
     public Vector3 TransientPosition { get { return _transientPosition; } }
     public Vector3 AngularVelocity { get { return _angularVelocity; } }
+
+
+    [Tooltip("Continuous Collision Detection")]
+    [SerializeField] private bool _useCCD = false;
+    public bool UseCCD { get { return _useCCD; } }
+
 
     private Vector3 _currentPosition;
     private Vector3 _transientPosition;
@@ -25,6 +41,10 @@ public class KinematicMover : MonoBehaviour
     private IKinematicMoverController _controller;
 
     private Transform _transform;
+
+    private Vector3 _halfExtents;
+
+    private BoxCastInfo _boxCastInfo;
 
     public void OnValidate()
     {
@@ -40,6 +60,8 @@ public class KinematicMover : MonoBehaviour
         _transientRotation = _transform.rotation;
 
         ColliderInstanceID = GetComponent<Collider>().GetInstanceID();
+
+        _halfExtents = GetComponent<Collider>().bounds.extents;
     }
 
     private void OnEnable()
@@ -59,6 +81,47 @@ public class KinematicMover : MonoBehaviour
         _currentRotation = _transientRotation;
 
         _controller?.UpdateVelocity(ref _velocity, ref _angularVelocity);
+    }
+
+    // TODO: sweep mover across trajectory to detect any bodies in the way
+    // Inform bodies if collided.
+    // This sweep prevent fast movers from tunneling through bodies.
+    public void SweepForBodies()
+    {
+        Vector3 sweepVector = Time.fixedDeltaTime * _velocity;
+        float sweepDistance = sweepVector.magnitude;
+        Vector3 sweepDirection = sweepVector / sweepDistance;
+
+        // Box cast across trajectory using KinematicBody layermask
+        bool castHit = Physics.BoxCast(
+            center: _currentPosition,
+            halfExtents: _halfExtents,
+            direction: sweepDirection,
+            orientation: Quaternion.identity,
+            maxDistance: sweepDistance,
+            hitInfo: out RaycastHit hitInfo,
+            layerMask: LayerMask.GetMask("KinematicBody")
+        );
+
+        Debug.Log($"Boxcast hit collider: {castHit}");
+
+        Gizmos.color = Color.red;
+
+        _boxCastInfo.Origin = _currentPosition;
+        _boxCastInfo.Direction = sweepDirection;
+        _boxCastInfo.Distance = sweepDistance;
+        _boxCastInfo.Color = Color.white;
+
+        // If hit, update body with hit information
+        if (castHit)
+        {
+            Vector3 bodyDisplacement = (sweepDistance - hitInfo.distance) * sweepDirection;
+            KinematicBody body = hitInfo.collider.GetComponent<KinematicBody>();
+            body?.RegisterMoverDisplacement(bodyDisplacement);
+
+            _boxCastInfo.Distance = hitInfo.distance;
+            _boxCastInfo.Color = Color.red;
+        }
     }
 
     public void Simulate()
@@ -104,5 +167,15 @@ public class KinematicMover : MonoBehaviour
         {
             ApplyTransientTransform();
         }
+    }
+
+    public void OnDrawGizmos()
+    {
+        Gizmos.color = _boxCastInfo.Color;
+
+        //Draw a Ray forward from GameObject toward the hit
+        Gizmos.DrawRay(_boxCastInfo.Origin, _boxCastInfo.Distance * _boxCastInfo.Direction);
+        //Draw a cube that extends to where the hit exists
+        Gizmos.DrawWireCube(_boxCastInfo.Origin + _boxCastInfo.Distance *  _boxCastInfo.Direction, 2 * _halfExtents);
     }
 }
