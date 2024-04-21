@@ -18,7 +18,7 @@ public class KinematicSystem : MonoBehaviour
     private static Dictionary<int, KinematicBody> _bodies = new();
     private static Dictionary<int, KinematicMover> _movers = new();
 
-    private bool _interpolate = false;
+    private bool _interpolate = true;
 
     private int _fixedFrame;
     private float _simulationStartTime;
