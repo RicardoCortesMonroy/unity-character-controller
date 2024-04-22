@@ -152,6 +152,31 @@ public class KinematicBody : MonoBehaviour
         }
     }
 
+    // Given a raycast hit, updates collision check variables according to the hit's normal
+    private void RegisterCollision(Collider collider, Vector3 normal)
+    {
+        if (IsStableGround(normal))
+        {
+            IsOnStableGround = true;
+            GroundNormal = normal;
+
+            // Check if ground is a mover and register it if yes
+            int hitObjectId = collider.gameObject.GetInstanceID();
+            _currentMover = KinematicSystem.CheckMover(hitObjectId);
+
+            if (_currentMover != null)
+            {
+                // Update ground and residual velocity based on current mover
+                // We choose the centre of the bottom sphere as the point on which to calculate tangential velocity
+                // because its position is stationary relative to both the body and the platform
+                // (unlike the base or the point of contact)
+                Vector3 bottomSphereCentre = _transientPosition + _collider.radius * _localUpwards;
+                _groundVelocity = _currentMover.GetTangentialVelocity(bottomSphereCentre);
+                _residualGroundVelocity = _groundVelocity;
+            }
+        }
+    }
+
     public void UpdateCurrentPositionAndRotation()
     {
         _currentPosition = _transientPosition;
@@ -184,17 +209,8 @@ public class KinematicBody : MonoBehaviour
         //_gravity = _inputState.Gravity;
 
 
-        #region Ground velocity calculations
-        if (_currentMover != null)
-        {
-            // We choose the centre of the bottom sphere as the point on which to calculate tangential velocity
-            // because its position is stationary relative to both the body and the platform
-            // (unlike the base or the point of contact)
-            Vector3 bottomSphereCentre = _transientPosition + _collider.radius * _localUpwards;
-            _groundVelocity = _currentMover.GetTangentialVelocity(bottomSphereCentre);
-            _residualGroundVelocity = _groundVelocity;
-        }
-        else
+        // Decay the residualGroundVelocity if airborne
+        if (_currentMover == null)
         {
             _groundVelocity = Vector3.zero;
 
@@ -207,7 +223,7 @@ public class KinematicBody : MonoBehaviour
                 _residualGroundVelocity = Vector3.zero;
             }
         }
-        #endregion
+        
 
         //Debug.DrawRay(_transientPosition, Time.fixedDeltaTime * _groundVelocity, Color.blue);
 
@@ -519,20 +535,6 @@ public class KinematicBody : MonoBehaviour
         _wasOnStableGroundInPreviousFrame = IsOnStableGround;
         IsOnStableGround = false;
         _currentMover = null;
-    }
-
-    // Given a raycast hit, updates collision check variables according to the hit's normal
-    private void RegisterCollision(Collider collider, Vector3 normal)
-    {
-        if (IsStableGround(normal))
-        {
-            IsOnStableGround = true;
-            GroundNormal = normal;
-
-            // Check if ground is a mover and register it if yes
-            int hitObjectId = collider.gameObject.GetInstanceID();
-            _currentMover = KinematicSystem.CheckMover(hitObjectId);
-        }
     }
 
     private bool IsStableGround(Vector3 groundNormal)
