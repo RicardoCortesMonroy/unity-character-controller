@@ -600,14 +600,24 @@ public class KinematicBody : MonoBehaviour
             Gizmos.DrawRay(_transientPosition, _postSweepVelocity);
         }
 
+        //if (_showSweep)
+        //{
+        //    Gizmos.color = new Color(1f, 0.7f, 0f, 0.5f);
+        //    Gizmos.DrawWireSphere(_preSweepPosition + _collider.radius * _localUpwards, _collider.radius);
+        //    Gizmos.color = Color.red;
+        //    Gizmos.DrawWireSphere(_postSweepPosition + _collider.radius * _localUpwards, _collider.radius);
+
+        //}
+
         if (_showSweep)
         {
             Gizmos.color = new Color(1f, 0.7f, 0f, 0.5f);
-            Gizmos.DrawWireSphere(_preSweepPosition + _collider.radius * _localUpwards, _collider.radius);
+            Gizmos.DrawWireSphere(_currentPosition + _collider.radius * _localUpwards, _collider.radius);
             Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(_postSweepPosition + _collider.radius * _localUpwards, _collider.radius);
+            Gizmos.DrawWireSphere(_transientPosition + _collider.radius * _localUpwards, _collider.radius);
 
         }
+
 
         if (_showContactSphere)
         {

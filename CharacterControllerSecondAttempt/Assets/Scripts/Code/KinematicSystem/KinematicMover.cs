@@ -10,7 +10,8 @@ public struct BoxCastInfo
     public Vector3 Origin;
     public Vector3 Direction;
     public float Distance;
-    public Color Color;
+    public bool hit;
+    public float hitDistance;
 }
 
 [RequireComponent(typeof(IKinematicMoverController))]
@@ -109,8 +110,8 @@ public class KinematicMover : MonoBehaviour
 
         _boxCastInfo.Origin = _currentPosition;
         _boxCastInfo.Direction = sweepDirection;
-        _boxCastInfo.Distance = sweepDistance;
-        _boxCastInfo.Color = Color.white;
+        _boxCastInfo.Distance = sweepDistance; 
+        _boxCastInfo.hit = castHit;
 
         // If hit, update body with hit information
         if (castHit)
@@ -119,8 +120,7 @@ public class KinematicMover : MonoBehaviour
             KinematicBody body = hitInfo.collider.GetComponent<KinematicBody>();
             body?.RegisterMoverDisplacement(_collider, bodyDisplacement);
 
-            _boxCastInfo.Distance = hitInfo.distance;
-            _boxCastInfo.Color = Color.red;
+            _boxCastInfo.hitDistance = hitInfo.distance;
         }
     }
 
@@ -171,11 +171,19 @@ public class KinematicMover : MonoBehaviour
 
     public void OnDrawGizmos()
     {
+        // Draw sweep
         Gizmos.color = Color.white;
-        Gizmos.DrawWireCube(_boxCastInfo.Origin, 2 * _halfExtents);
-
-        Gizmos.color = _boxCastInfo.Color;
         Gizmos.DrawRay(_boxCastInfo.Origin, _boxCastInfo.Distance * _boxCastInfo.Direction);
-        Gizmos.DrawWireCube(_boxCastInfo.Origin + _boxCastInfo.Distance *  _boxCastInfo.Direction, 2 * _halfExtents);
+        Gizmos.DrawWireCube(_boxCastInfo.Origin, 2 * _halfExtents);
+        Gizmos.DrawWireCube(_boxCastInfo.Origin + _boxCastInfo.Distance * _boxCastInfo.Direction, 2 * _halfExtents);
+
+        if (_boxCastInfo.hit)
+        {
+            // Draw hit
+            Gizmos.color = Color.red;
+            Gizmos.DrawRay(_boxCastInfo.Origin, _boxCastInfo.hitDistance * _boxCastInfo.Direction);
+            Gizmos.DrawWireCube(_boxCastInfo.Origin + _boxCastInfo.hitDistance * _boxCastInfo.Direction, 2 * _halfExtents);
+        }
+
     }
 }
