@@ -1888,7 +1888,7 @@ GameObject:
   - component: {fileID: 656661847}
   - component: {fileID: 656661846}
   m_Layer: 3
-  m_Name: Clipping vertical mover 1 (2)
+  m_Name: Fast elevator
   m_TagString: KinematicMover
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1943,7 +1943,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ColliderInstanceID: 23908
-  _useCCD: 0
+  _useCCD: 1
 --- !u!65 &656661848
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -2557,8 +2557,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 20.39
-  m_fontSizeBase: 20.39
+  m_fontSize: 84.3
+  m_fontSizeBase: 84.3
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -2625,7 +2625,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 5, y: 5}
-  m_SizeDelta: {x: 1000, y: 1000}
+  m_SizeDelta: {x: 2000, y: 1000}
   m_Pivot: {x: 0, y: 0}
 --- !u!1 &957794283
 GameObject:
@@ -2886,8 +2886,8 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
-  m_LocalRotation: {x: 0, y: 0.997564, z: -0.06975646, w: 0}
-  m_LocalPosition: {x: -18.2, y: 26.178469, z: -7.05186}
+  m_LocalRotation: {x: 0, y: 0.9975641, z: -0.06975647, w: 0}
+  m_LocalPosition: {x: -18.2, y: 4.6776237, z: -6.2198796}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4897,7 +4897,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1788228425}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -18.2, y: 26.1, z: 0.09}
+  m_LocalPosition: {x: -18.2, y: 4.52, z: -0.21}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -4918,7 +4918,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _debug: {fileID: 921038996}
-  _transientPosition: {x: -18.2, y: 26.1, z: 0.09}
+  _transientPosition: {x: -18.2, y: 4.52, z: -0.21}
   _moverVelocityDecayFactor: 0
   StableGroundThreshold: 0
   _showDebugText: 1
@@ -5481,7 +5481,7 @@ GameObject:
   - component: {fileID: 2079546117}
   - component: {fileID: 2079546116}
   m_Layer: 3
-  m_Name: Wall (5)
+  m_Name: Fast wall
   m_TagString: KinematicMover
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5516,7 +5516,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _waypoints:
   - {x: 0, y: 0, z: 0}
-  - {x: 0, y: 0, z: 10}
+  - {x: 0, y: 0, z: 20}
   _maxSpeed: 100
   _timeToAccelerate: 0
   _rotationalAxis: {x: 0, y: 1, z: 0}

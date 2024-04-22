@@ -141,9 +141,12 @@ public class KinematicBody : MonoBehaviour
 #endif
     }
 
-    public void RegisterMoverDisplacement(Vector3 displacement)
+    public void RegisterMoverDisplacement(Collider mover, Vector3 displacement)
     {
-        _moverDisplacement += displacement;
+        if (mover.gameObject != _currentMover?.gameObject)
+        {
+            _moverDisplacement += displacement;
+        }
     }
 
     public void UpdateCurrentPositionAndRotation()
@@ -152,12 +155,23 @@ public class KinematicBody : MonoBehaviour
         _currentRotation = _transientRotation;
     }
 
+    public void ApplyMoverDisplacement()
+    {
+        _transientPosition += _moverDisplacement;
+        _moverDisplacement = Vector3.zero;
+    }
+
     public void CalculateVelocity()
     {
         _controller?.UpdateInputState(ref _inputState);
         _movementVelocity = _inputState.MovementVelocity;
         ForceVelocity.Acceleration = _inputState.Gravity;
-        _localUpwards = -_inputState.Gravity.normalized;
+        
+        if (_inputState.Gravity != Vector3.zero)
+        {
+            _localUpwards = -_inputState.Gravity.normalized;
+        }
+        
 
 
         // Impulse calculations
@@ -166,7 +180,7 @@ public class KinematicBody : MonoBehaviour
         _inputState.ImpulseThisFrame = Vector3.zero;
         //_gravity = _inputState.Gravity;
 
-        
+
         #region Ground velocity calculations
         if (_currentMover != null)
         {
@@ -197,7 +211,7 @@ public class KinematicBody : MonoBehaviour
         if (!IsOnStableGround || IsImpulseThisFrame) ForceVelocity.ApplyAcceleration();
 
     }
-    
+
     public void Simulate()
     {
         #region Handle rotation via the lookToVector

@@ -41,6 +41,7 @@ public class KinematicMover : MonoBehaviour
     private IKinematicMoverController _controller;
 
     private Transform _transform;
+    private Collider _collider;
 
     private Vector3 _halfExtents;
 
@@ -59,7 +60,8 @@ public class KinematicMover : MonoBehaviour
         _transientPosition = _transform.position;
         _transientRotation = _transform.rotation;
 
-        ColliderInstanceID = GetComponent<Collider>().GetInstanceID();
+        _collider = GetComponent<Collider>();
+        ColliderInstanceID = _collider.GetInstanceID();
 
         _halfExtents = GetComponent<Collider>().bounds.extents;
     }
@@ -103,8 +105,6 @@ public class KinematicMover : MonoBehaviour
             layerMask: LayerMask.GetMask("KinematicBody")
         );
 
-        Debug.Log($"Boxcast hit collider: {castHit}");
-
         Gizmos.color = Color.red;
 
         _boxCastInfo.Origin = _currentPosition;
@@ -117,7 +117,7 @@ public class KinematicMover : MonoBehaviour
         {
             Vector3 bodyDisplacement = (sweepDistance - hitInfo.distance) * sweepDirection;
             KinematicBody body = hitInfo.collider.GetComponent<KinematicBody>();
-            body?.RegisterMoverDisplacement(bodyDisplacement);
+            body?.RegisterMoverDisplacement(_collider, bodyDisplacement);
 
             _boxCastInfo.Distance = hitInfo.distance;
             _boxCastInfo.Color = Color.red;
@@ -171,11 +171,11 @@ public class KinematicMover : MonoBehaviour
 
     public void OnDrawGizmos()
     {
-        Gizmos.color = _boxCastInfo.Color;
+        Gizmos.color = Color.white;
+        Gizmos.DrawWireCube(_boxCastInfo.Origin, 2 * _halfExtents);
 
-        //Draw a Ray forward from GameObject toward the hit
+        Gizmos.color = _boxCastInfo.Color;
         Gizmos.DrawRay(_boxCastInfo.Origin, _boxCastInfo.Distance * _boxCastInfo.Direction);
-        //Draw a cube that extends to where the hit exists
         Gizmos.DrawWireCube(_boxCastInfo.Origin + _boxCastInfo.Distance *  _boxCastInfo.Direction, 2 * _halfExtents);
     }
 }
