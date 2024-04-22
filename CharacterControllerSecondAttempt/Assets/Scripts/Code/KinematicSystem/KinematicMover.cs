@@ -124,9 +124,9 @@ public class KinematicMover : MonoBehaviour
         // If hit, update body with hit information
         if (castHit)
         {
-            Vector3 bodyDisplacement = (sweepDistance - hitInfo.distance) * sweepDirection;
+            float fractionOfFrameApplied = (sweepDistance - hitInfo.distance) / sweepDistance;
             KinematicBody body = hitInfo.collider.GetComponent<KinematicBody>();
-            body?.RegisterMoverPush(_collider, -hitInfo.normal, bodyDisplacement, _linearVelocity);
+            body?.RegisterMoverPush(_collider, -hitInfo.normal, _linearVelocity, fractionOfFrameApplied);
 
             _boxCastInfo.hitDistance = hitInfo.distance;
         }

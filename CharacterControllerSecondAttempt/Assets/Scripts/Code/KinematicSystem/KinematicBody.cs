@@ -38,6 +38,7 @@ public class KinematicBody : MonoBehaviour
     private Vector3 _movementVelocity;
     private Vector3 _groundVelocity;
     private Vector3 _residualGroundVelocity;
+    private float _fractionOfFrameGroundVelocityApplied;
 
     // Current and transient (simulated) transform info
     private Vector3 _currentPosition;
@@ -142,13 +143,30 @@ public class KinematicBody : MonoBehaviour
 #endif
     }
 
-    public void RegisterMoverPush(Collider mover, Vector3 groundNormal, Vector3 displacement, Vector3 moverVelocity)
+    public void RegisterMoverPush(Collider mover, Vector3 groundNormal, Vector3 moverVelocity, float fractionOfFrameApplied = 1.0f)
     {
+
+
+        // If the body's velocity relative to the mover is pointing away
+        // from the normal of the mover, then it will outpace the mover
+        // within the same physics frame. Hence we shouldn't consider the collision.
+        Vector3 relativeBodyVelocity = _groundVelocity + ForceVelocity.AppliedVelocity - moverVelocity;
+        float bodyVelocityDotMoverNormal = Vector3.Dot(relativeBodyVelocity, groundNormal);
+        if (bodyVelocityDotMoverNormal > 0) return;
+        
+        
         RegisterCollision(mover, groundNormal);
 
         if (mover.gameObject != _currentMover?.gameObject)
         {
-            _moverDisplacement += displacement;
+            _moverDisplacement += fractionOfFrameApplied * Time.fixedDeltaTime * moverVelocity;
+            _debugMoverDisplacement = _moverDisplacement;
+        }
+        else
+        {
+            // If the body is only technically on the mover for 50% of the frame,
+            // then we should only simulate 50% of the ground velocity
+            _fractionOfFrameGroundVelocityApplied = fractionOfFrameApplied;
         }
     }
 
@@ -163,17 +181,6 @@ public class KinematicBody : MonoBehaviour
             // Check if ground is a mover and register it if yes
             int hitObjectId = collider.gameObject.GetInstanceID();
             _currentMover = KinematicSystem.CheckMover(hitObjectId);
-
-            if (_currentMover != null)
-            {
-                // Update ground and residual velocity based on current mover
-                // We choose the centre of the bottom sphere as the point on which to calculate tangential velocity
-                // because its position is stationary relative to both the body and the platform
-                // (unlike the base or the point of contact)
-                Vector3 bottomSphereCentre = _transientPosition + _collider.radius * _localUpwards;
-                _groundVelocity = _currentMover.GetTangentialVelocity(bottomSphereCentre);
-                _residualGroundVelocity = _groundVelocity;
-            }
         }
     }
 
@@ -201,16 +208,24 @@ public class KinematicBody : MonoBehaviour
         }
         
 
-
         // Impulse calculations
         bool IsImpulseThisFrame = _inputState.ImpulseThisFrame.sqrMagnitude > 0f;
         ForceVelocity.AddImpulse(_inputState.ImpulseThisFrame);
         _inputState.ImpulseThisFrame = Vector3.zero;
-        //_gravity = _inputState.Gravity;
 
 
-        // Decay the residualGroundVelocity if airborne
-        if (_currentMover == null)
+        // Ground and residual velocity
+        if (_currentMover != null)
+        {
+            // We choose the centre of the bottom sphere as the point on which to calculate tangential velocity
+            // because its position is stationary relative to both the body and the platform
+            // (unlike the base or the point of contact)
+            Vector3 bottomSphereCentre = _transientPosition + _collider.radius * _localUpwards;
+            _groundVelocity = _currentMover.GetTangentialVelocity(bottomSphereCentre);
+            _groundVelocity *= _fractionOfFrameGroundVelocityApplied;
+            _residualGroundVelocity = _groundVelocity;
+        }
+        else
         {
             _groundVelocity = Vector3.zero;
 
@@ -223,12 +238,8 @@ public class KinematicBody : MonoBehaviour
                 _residualGroundVelocity = Vector3.zero;
             }
         }
-        
-
-        //Debug.DrawRay(_transientPosition, Time.fixedDeltaTime * _groundVelocity, Color.blue);
 
         if (!IsOnStableGround || IsImpulseThisFrame) ForceVelocity.ApplyAcceleration();
-
     }
 
     public void Simulate()
@@ -409,7 +420,7 @@ public class KinematicBody : MonoBehaviour
     // will not perform sweep collision tests with touching colliders
     public void CollisionCheck(bool depenetrateOnly = false)
     {
-        if (!depenetrateOnly) ResetCollisionVariables();
+        if (!depenetrateOnly) ResetSimulationVariables();
 
         bool terminatePenetrationChecks = false;
         for (int i = 0; i < _maxPenetrationChecks; i++)
@@ -529,12 +540,13 @@ public class KinematicBody : MonoBehaviour
     }
 
     // Resets variables involved in collision checks
-    private void ResetCollisionVariables()
+    private void ResetSimulationVariables()
     {
         GroundNormal = _localUpwards;
         _wasOnStableGroundInPreviousFrame = IsOnStableGround;
         IsOnStableGround = false;
         _currentMover = null;
+        _fractionOfFrameGroundVelocityApplied = 1.0f;
     }
 
     private bool IsStableGround(Vector3 groundNormal)
@@ -549,6 +561,7 @@ public class KinematicBody : MonoBehaviour
         _transform.rotation = _transientRotation;
     }
 
+    private Vector3 _debugMoverDisplacement;
     private void Update()
     {
         if (_showDebugText)
@@ -557,6 +570,9 @@ public class KinematicBody : MonoBehaviour
             _debugText += $"\nGround normal: {GroundNormal}";
             _debugText += $"\nForce velocity: {ForceVelocity.AppliedVelocity}\nMovement velocity: {_movementVelocity}\nGround velocity: {_groundVelocity}\nResidual ground velocity: {_residualGroundVelocity}\nPre-sweep velocity: {_preSweepVelocity}";
             _debugText += $"\nCurrent mover: {_currentMover?.name ?? "None"}";
+            _debugText += $"\nDisplacement: {_debugMoverDisplacement}";
+
+            _debugMoverDisplacement = Vector3.zero;
 
             //_debugText += $"\nHitting normals:";
             //for (int i = 0; i < _nbCollidersTouching; i++)
