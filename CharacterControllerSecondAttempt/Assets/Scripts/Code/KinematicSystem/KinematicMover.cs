@@ -2,11 +2,22 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
+using UnityEditor.PackageManager;
 using UnityEngine;
+
+public struct BoxCastInfo
+{
+    public Vector3 Origin;
+    public Vector3 Direction;
+    public float Distance;
+    public bool hit;
+    public float hitDistance;
+}
 
 [RequireComponent(typeof(IKinematicMoverController))]
 public class KinematicMover : MonoBehaviour
 {
+
     public readonly static string Tag = "KinematicMover";
 
     [HideInInspector] public int ColliderInstanceID;
@@ -14,17 +25,28 @@ public class KinematicMover : MonoBehaviour
     public Vector3 TransientPosition { get { return _transientPosition; } }
     public Vector3 AngularVelocity { get { return _angularVelocity; } }
 
+
+    [Tooltip("Continuous Collision Detection")]
+    [SerializeField] private bool _useCCD = false;
+    public bool UseCCD { get { return _useCCD; } }
+
+
     private Vector3 _currentPosition;
     private Vector3 _transientPosition;
     private Quaternion _currentRotation;
     private Quaternion _transientRotation;
 
-    private Vector3 _velocity;
+    private Vector3 _linearVelocity;
     private Vector3 _angularVelocity; // rad/s
 
     private IKinematicMoverController _controller;
 
     private Transform _transform;
+    private Collider _collider;
+
+    private Vector3 _boxColliderSize;
+
+    private BoxCastInfo _boxCastInfo;
 
     public void OnValidate()
     {
@@ -39,7 +61,18 @@ public class KinematicMover : MonoBehaviour
         _transientPosition = _transform.position;
         _transientRotation = _transform.rotation;
 
-        ColliderInstanceID = GetComponent<Collider>().GetInstanceID();
+        _collider = GetComponent<Collider>();
+        ColliderInstanceID = _collider.GetInstanceID();
+
+        if ( _useCCD )
+        {
+            var boxCollider = GetComponent<BoxCollider>();
+            if ( boxCollider == null )
+            {
+                Debug.LogError($"CCD can only be used on objects with box colliders");
+            }
+            _boxColliderSize = Vector3.Scale(transform.lossyScale, boxCollider.size);
+        }
     }
 
     private void OnEnable()
@@ -58,18 +91,56 @@ public class KinematicMover : MonoBehaviour
         _currentPosition = _transientPosition;
         _currentRotation = _transientRotation;
 
-        _controller?.UpdateVelocity(ref _velocity, ref _angularVelocity);
+        _controller?.UpdateVelocity(ref _linearVelocity, ref _angularVelocity);
+    }
+
+    // TODO: sweep mover across trajectory to detect any bodies in the way
+    // Inform bodies if collided.
+    // This sweep prevent fast movers from tunneling through bodies.
+    public void SweepForBodies()
+    {
+        Vector3 sweepVector = Time.fixedDeltaTime * _linearVelocity;
+        float sweepDistance = sweepVector.magnitude;
+        Vector3 sweepDirection = sweepVector / sweepDistance;
+
+        // Box cast across trajectory using KinematicBody layermask
+        bool castHit = Physics.BoxCast(
+            center: _currentPosition,
+            halfExtents: 0.5f * _boxColliderSize,
+            direction: sweepDirection,
+            orientation: transform.rotation,
+            maxDistance: sweepDistance,
+            hitInfo: out RaycastHit hitInfo,
+            layerMask: LayerMask.GetMask("KinematicBody")
+        );
+
+        Gizmos.color = Color.red;
+
+        _boxCastInfo.Origin = _currentPosition;
+        _boxCastInfo.Direction = sweepDirection;
+        _boxCastInfo.Distance = sweepDistance; 
+        _boxCastInfo.hit = castHit;
+
+        // If hit, update body with hit information
+        if (castHit)
+        {
+            Vector3 bodyDisplacement = (sweepDistance - hitInfo.distance) * sweepDirection;
+            KinematicBody body = hitInfo.collider.GetComponent<KinematicBody>();
+            body?.RegisterMoverPush(_collider, -hitInfo.normal, bodyDisplacement, _linearVelocity);
+
+            _boxCastInfo.hitDistance = hitInfo.distance;
+        }
     }
 
     public void Simulate()
     {
-        _transientPosition += Time.fixedDeltaTime * _velocity;
+        _transientPosition += Time.fixedDeltaTime * _linearVelocity;
         _transientRotation = Quaternion.Euler(Mathf.Rad2Deg * Time.fixedDeltaTime * _angularVelocity) * _transientRotation;
     }
 
     public Vector3 GetTangentialVelocity(Vector3 contactPoint)
     {
-        Vector3 baseVelocity = _velocity;
+        Vector3 baseVelocity = _linearVelocity;
         Vector3 angularVelocity = _angularVelocity;
         if (angularVelocity == Vector3.zero) return baseVelocity;
 
@@ -103,6 +174,25 @@ public class KinematicMover : MonoBehaviour
         else
         {
             ApplyTransientTransform();
+        }
+    }
+
+    private float angleY;
+
+    public void OnDrawGizmos()
+    {
+        // Draw sweep
+        Gizmos.color = Color.white;
+        Gizmos.DrawRay(_boxCastInfo.Origin, _boxCastInfo.Distance * _boxCastInfo.Direction);
+        GizmoExtensions.DrawWireCube(_boxCastInfo.Origin, 0.5f * _boxColliderSize, transform.rotation);
+        GizmoExtensions.DrawWireCube(_boxCastInfo.Origin + _boxCastInfo.Distance * _boxCastInfo.Direction, 0.5f * _boxColliderSize, transform.rotation);
+
+        if (_boxCastInfo.hit)
+        {
+            // Draw hit
+            Gizmos.color = Color.red;
+            Gizmos.DrawRay(_boxCastInfo.Origin, _boxCastInfo.hitDistance * _boxCastInfo.Direction);
+            GizmoExtensions.DrawWireCube(_boxCastInfo.Origin + _boxCastInfo.hitDistance * _boxCastInfo.Direction, 0.5f * _boxColliderSize, transform.rotation);
         }
     }
 }

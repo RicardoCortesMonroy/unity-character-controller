@@ -19,6 +19,7 @@ public class KinematicSystem : MonoBehaviour
     private static Dictionary<int, KinematicMover> _movers = new();
 
     private bool _interpolate = false;
+    private bool _alternateSteps = false;
 
     private int _fixedFrame;
     private float _simulationStartTime;
@@ -57,24 +58,39 @@ public class KinematicSystem : MonoBehaviour
 
     private void FixedUpdate()
     {
-        //Debug.Log($"------------{_fixedFrame}------------");
         _simulationStartTime = Time.time;
 
-        foreach (var mover in _movers.Values)
+        if (!_alternateSteps || _fixedFrame % 2 == 0 )
         {
-            mover.CalculateVelocity();
-            mover.Simulate();
-            mover.ApplyTransientTransform();
-        }
-        foreach (var body in _bodies.Values)
-        {
-            body.UpdateCurrentPositionAndRotation();
-            //body.CollisionCheck(depenetrateOnly: true);
-            body.CalculateVelocity();
-            body.Simulate();
-            body.CollisionCheck();
+            foreach (var body in _bodies.Values)
+            {
+                body.ApplyTransientTransform();
+            }
 
-            body.ApplyTransientTransform();
+            foreach (var mover in _movers.Values)
+            {
+                mover.CalculateVelocity();
+
+                if (mover.UseCCD) mover.SweepForBodies();
+
+                mover.Simulate();
+                mover.ApplyTransientTransform();
+            }
+        }
+
+        if (!_alternateSteps || _fixedFrame % 2 == 1)
+        {
+            foreach (var body in _bodies.Values)
+            {
+                body.UpdateCurrentPositionAndRotation();
+                body.ApplyMoverDisplacement();
+
+                body.CalculateVelocity();
+                body.Simulate();
+                body.CollisionCheck();
+
+                body.ApplyTransientTransform();
+            }
         }
         _fixedFrame++;
     }
