@@ -36,7 +36,7 @@ public class KinematicMover : MonoBehaviour
     private Quaternion _currentRotation;
     private Quaternion _transientRotation;
 
-    private Vector3 _velocity;
+    private Vector3 _linearVelocity;
     private Vector3 _angularVelocity; // rad/s
 
     private IKinematicMoverController _controller;
@@ -44,7 +44,7 @@ public class KinematicMover : MonoBehaviour
     private Transform _transform;
     private Collider _collider;
 
-    private Vector3 _halfExtents;
+    private Vector3 _boxColliderSize;
 
     private BoxCastInfo _boxCastInfo;
 
@@ -64,7 +64,15 @@ public class KinematicMover : MonoBehaviour
         _collider = GetComponent<Collider>();
         ColliderInstanceID = _collider.GetInstanceID();
 
-        _halfExtents = GetComponent<Collider>().bounds.extents;
+        if ( _useCCD )
+        {
+            var boxCollider = GetComponent<BoxCollider>();
+            if ( boxCollider == null )
+            {
+                Debug.LogError($"CCD can only be used on objects with box colliders");
+            }
+            _boxColliderSize = Vector3.Scale(transform.lossyScale, boxCollider.size);
+        }
     }
 
     private void OnEnable()
@@ -83,7 +91,7 @@ public class KinematicMover : MonoBehaviour
         _currentPosition = _transientPosition;
         _currentRotation = _transientRotation;
 
-        _controller?.UpdateVelocity(ref _velocity, ref _angularVelocity);
+        _controller?.UpdateVelocity(ref _linearVelocity, ref _angularVelocity);
     }
 
     // TODO: sweep mover across trajectory to detect any bodies in the way
@@ -91,16 +99,16 @@ public class KinematicMover : MonoBehaviour
     // This sweep prevent fast movers from tunneling through bodies.
     public void SweepForBodies()
     {
-        Vector3 sweepVector = Time.fixedDeltaTime * _velocity;
+        Vector3 sweepVector = Time.fixedDeltaTime * _linearVelocity;
         float sweepDistance = sweepVector.magnitude;
         Vector3 sweepDirection = sweepVector / sweepDistance;
 
         // Box cast across trajectory using KinematicBody layermask
         bool castHit = Physics.BoxCast(
             center: _currentPosition,
-            halfExtents: _halfExtents,
+            halfExtents: 0.5f * _boxColliderSize,
             direction: sweepDirection,
-            orientation: Quaternion.identity,
+            orientation: transform.rotation,
             maxDistance: sweepDistance,
             hitInfo: out RaycastHit hitInfo,
             layerMask: LayerMask.GetMask("KinematicBody")
@@ -118,7 +126,7 @@ public class KinematicMover : MonoBehaviour
         {
             Vector3 bodyDisplacement = (sweepDistance - hitInfo.distance) * sweepDirection;
             KinematicBody body = hitInfo.collider.GetComponent<KinematicBody>();
-            body?.RegisterMoverDisplacement(_collider, bodyDisplacement);
+            body?.RegisterMoverPush(_collider, -hitInfo.normal, bodyDisplacement, _linearVelocity);
 
             _boxCastInfo.hitDistance = hitInfo.distance;
         }
@@ -126,13 +134,13 @@ public class KinematicMover : MonoBehaviour
 
     public void Simulate()
     {
-        _transientPosition += Time.fixedDeltaTime * _velocity;
+        _transientPosition += Time.fixedDeltaTime * _linearVelocity;
         _transientRotation = Quaternion.Euler(Mathf.Rad2Deg * Time.fixedDeltaTime * _angularVelocity) * _transientRotation;
     }
 
     public Vector3 GetTangentialVelocity(Vector3 contactPoint)
     {
-        Vector3 baseVelocity = _velocity;
+        Vector3 baseVelocity = _linearVelocity;
         Vector3 angularVelocity = _angularVelocity;
         if (angularVelocity == Vector3.zero) return baseVelocity;
 
@@ -169,21 +177,22 @@ public class KinematicMover : MonoBehaviour
         }
     }
 
+    private float angleY;
+
     public void OnDrawGizmos()
     {
         // Draw sweep
         Gizmos.color = Color.white;
         Gizmos.DrawRay(_boxCastInfo.Origin, _boxCastInfo.Distance * _boxCastInfo.Direction);
-        Gizmos.DrawWireCube(_boxCastInfo.Origin, 2 * _halfExtents);
-        Gizmos.DrawWireCube(_boxCastInfo.Origin + _boxCastInfo.Distance * _boxCastInfo.Direction, 2 * _halfExtents);
+        GizmoExtensions.DrawWireCube(_boxCastInfo.Origin, 0.5f * _boxColliderSize, transform.rotation);
+        GizmoExtensions.DrawWireCube(_boxCastInfo.Origin + _boxCastInfo.Distance * _boxCastInfo.Direction, 0.5f * _boxColliderSize, transform.rotation);
 
         if (_boxCastInfo.hit)
         {
             // Draw hit
             Gizmos.color = Color.red;
             Gizmos.DrawRay(_boxCastInfo.Origin, _boxCastInfo.hitDistance * _boxCastInfo.Direction);
-            Gizmos.DrawWireCube(_boxCastInfo.Origin + _boxCastInfo.hitDistance * _boxCastInfo.Direction, 2 * _halfExtents);
+            GizmoExtensions.DrawWireCube(_boxCastInfo.Origin + _boxCastInfo.hitDistance * _boxCastInfo.Direction, 0.5f * _boxColliderSize, transform.rotation);
         }
-
     }
 }

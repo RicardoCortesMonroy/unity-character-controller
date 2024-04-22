@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
+using UnityEngine.InputSystem.HID;
 
 public struct InputState
 {
@@ -141,8 +142,10 @@ public class KinematicBody : MonoBehaviour
 #endif
     }
 
-    public void RegisterMoverDisplacement(Collider mover, Vector3 displacement)
+    public void RegisterMoverPush(Collider mover, Vector3 groundNormal, Vector3 displacement, Vector3 moverVelocity)
     {
+        RegisterCollision(mover, groundNormal);
+
         if (mover.gameObject != _currentMover?.gameObject)
         {
             _moverDisplacement += displacement;
@@ -317,7 +320,7 @@ public class KinematicBody : MonoBehaviour
             // If hit was valid, execute logic to handle it
             if (nbValidHits > 0)
             {
-                bool isHitStable = RegisterStability(closestHit);
+                bool isHitStable = IsStableGround(closestHit.normal);
                 bool isCeiling = Vector3.Dot(closestHit.normal, _localUpwards) < -0.05f;
 
                 Vector3 effectiveNormal = closestHit.normal;
@@ -498,16 +501,7 @@ public class KinematicBody : MonoBehaviour
                     {
                         // Register contact
                         _collidersTouchingNormals[j] = hit.normal;
-                        bool isHitStable = RegisterStability(hit);
-                        if (isHitStable)
-                        {
-                            IsOnStableGround = true;
-                            GroundNormal = hit.normal;
-
-                            // Check if ground is a mover and register it if yes
-                            int hitObjectId = hit.collider.gameObject.GetInstanceID();
-                            _currentMover = KinematicSystem.CheckMover(hitObjectId);
-                        }
+                        RegisterCollision(hit.collider, hit.normal);
 
                         break;
                     }
@@ -528,11 +522,22 @@ public class KinematicBody : MonoBehaviour
     }
 
     // Given a raycast hit, updates collision check variables according to the hit's normal
-    private bool RegisterStability(RaycastHit hit)
+    private void RegisterCollision(Collider collider, Vector3 normal)
     {
-        float groundAngle = Vector3.Angle(hit.normal, _localUpwards);
+        if (IsStableGround(normal))
+        {
+            IsOnStableGround = true;
+            GroundNormal = normal;
 
-        // If collided ground is stable
+            // Check if ground is a mover and register it if yes
+            int hitObjectId = collider.gameObject.GetInstanceID();
+            _currentMover = KinematicSystem.CheckMover(hitObjectId);
+        }
+    }
+
+    private bool IsStableGround(Vector3 groundNormal)
+    {
+        float groundAngle = Vector3.Angle(groundNormal, _localUpwards);
         return groundAngle < StableGroundThreshold;
     }
 
@@ -582,8 +587,8 @@ public class KinematicBody : MonoBehaviour
         if (_showSkinCollider)
         {
             Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(_postSweepPosition + _collider.radius * _localUpwards, _collider.radius + _colliderMargin);
-            Gizmos.DrawWireSphere(_postSweepPosition + (_collider.height - _collider.radius) * _localUpwards, _collider.radius + _colliderMargin);
+            GizmoExtensions.DrawSphere(_postSweepPosition + _collider.radius * _localUpwards, _collider.radius + _colliderMargin);
+            GizmoExtensions.DrawSphere(_postSweepPosition + (_collider.height - _collider.radius) * _localUpwards, _collider.radius + _colliderMargin);
         }
 
         if (_showGroundNormal)
@@ -611,10 +616,10 @@ public class KinematicBody : MonoBehaviour
 
         if (_showSweep)
         {
-            Gizmos.color = new Color(1f, 0.7f, 0f, 0.5f);
-            Gizmos.DrawWireSphere(_currentPosition + _collider.radius * _localUpwards, _collider.radius);
+            Gizmos.color = new Color(1f, 0.7f, 0f, 1f);
+            GizmoExtensions.DrawSphere(_currentPosition + _collider.radius * _localUpwards, _collider.radius);
             Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(_transientPosition + _collider.radius * _localUpwards, _collider.radius);
+            GizmoExtensions.DrawSphere(_transientPosition + _collider.radius * _localUpwards, _collider.radius);
 
         }
 
@@ -622,7 +627,7 @@ public class KinematicBody : MonoBehaviour
         if (_showContactSphere)
         {
             Gizmos.color = new Color(1f, 0f, 0f, 0.5f);
-            Gizmos.DrawWireSphere(_postSweepPosition + _collider.radius * _localUpwards, _collider.radius + _surfaceDetectionRange);
+            GizmoExtensions.DrawSphere(_postSweepPosition + _collider.radius * _localUpwards, _collider.radius + _surfaceDetectionRange);
         }
     }
 
