@@ -15,6 +15,17 @@ public struct InputState
     public bool MovementCanceledThisFrame;
 }
 
+public struct KinematicBodyDebugInfo
+{
+    public Vector3 StartPosition;
+    public Vector3 PostMoverDisplacement;
+    public Vector3 PostGroundSweepPosition;
+    public Vector3 PostMovementSweepPosition;
+    public Vector3 PostDepenetrationPosition;
+    public Vector3 PostEdgeSnapPosition;
+}
+
+
 [RequireComponent(typeof(CapsuleCollider))]
 public class KinematicBody : MonoBehaviour
 {
@@ -32,6 +43,7 @@ public class KinematicBody : MonoBehaviour
     private string _debugText;
 
     InputState _inputState;
+    KinematicBodyDebugInfo _debugInfo;
 
     // Velocity components
     public VerletVelocity ForceVelocity = new();
@@ -54,8 +66,13 @@ public class KinematicBody : MonoBehaviour
     // Grounded-related variables
     public bool IsOnStableGround { get; private set; } // was the body on stable ground at the beginning of this frame?
     public Vector3 GroundNormal { get; private set; }
-    public float StableGroundThreshold; // deg
+    private Vector3 _groundNormalPrev;
+
+    public float StableGroundThreshold { get; set; } // deg
     private bool _wasOnStableGroundInPreviousFrame;
+
+    // Edge snapping
+    public float _maxEdgeSnappingAngle = 45f;
 
     // Sweep variables
     private RaycastHit[] _sweepHits = new RaycastHit[8];
@@ -81,11 +98,18 @@ public class KinematicBody : MonoBehaviour
     [SerializeField] private bool _showVelocity;
     [SerializeField] private bool _showMovingPlatformContactPoints;
     [SerializeField] private bool _showSweep;
-    [SerializeField] private bool _showDeltaMovement = true;
+    [SerializeField] private bool _showSweepSteps;
     [SerializeField] private bool _showContactSphere;
 
+    [SerializeField] private bool _showStartPosition;
+    [SerializeField] private bool _showPostMoverDisplacement;
+    [SerializeField] private bool _showPostGroundSweepPosition;
+    [SerializeField] private bool _showPostMovementSweepPosition;
+    [SerializeField] private bool _showPostDepenetrationPosition;
+    [SerializeField] private bool _showPostEdgeSnapPosition;
+
     // Velocity tracking
-    private Vector3 _preSweepVelocity;
+    private Vector3 _appliedSweepVelocity;
     private Vector3 _postSweepVelocity;
     private Vector3 _preSweepPosition;
     private Vector3 _postSweepPosition;
@@ -189,12 +213,16 @@ public class KinematicBody : MonoBehaviour
     {
         _currentPosition = _transientPosition;
         _currentRotation = _transientRotation;
+
+        _debugInfo.StartPosition = _currentPosition;
     }
 
     public void ApplyMoverDisplacement()
     {
         _transientPosition += _moverDisplacement;
         _moverDisplacement = Vector3.zero;
+
+        _debugInfo.PostMoverDisplacement = _transientPosition;
     }
 
     public void CalculateVelocity()
@@ -245,8 +273,7 @@ public class KinematicBody : MonoBehaviour
 
     public void Simulate()
     {
-        #region Handle rotation via the lookToVector
-
+        // Rotation
         if (_inputState.IsMoving)
         {
             _lookToVector = _inputState.LookToVector.With(_localUpwards, 0f).normalized;
@@ -261,13 +288,12 @@ public class KinematicBody : MonoBehaviour
             _lookToVector = Vector3.Cross(_localUpwards, Vector3.Cross(_lookToVector, _localUpwards));
         }
         _transientRotation = Quaternion.LookRotation(_lookToVector, _localUpwards);
-        #endregion
 
-        #region Handle position and perform sweeps
-        Vector3 appliedVelocity = ForceVelocity.AppliedVelocity + _movementVelocity;
 
+        // Velocity
         _preSweepPosition = _transientPosition;
-        _preSweepVelocity = appliedVelocity;
+        _appliedSweepVelocity = ForceVelocity.AppliedVelocity + _movementVelocity;
+
         // If on a mover, sweep across the ground velocity first while ignoring the mover itself
         // Prevent movers tunnelling through the body at fast speed or on thin geometry (e.g. the very edge of a corner)
         if (_currentMover != null)
@@ -278,13 +304,68 @@ public class KinematicBody : MonoBehaviour
         // If there is no mover, we may still have residual velocity from the last mover
         else
         {
-            appliedVelocity += _residualGroundVelocity;
-            _preSweepVelocity = appliedVelocity;
+            _appliedSweepVelocity += _residualGroundVelocity;
         }
 
-        SweepBodyForCollisions(appliedVelocity);
 
-        #endregion
+        Debug.Log($"Nominal sweep vector: {Time.fixedDeltaTime * _appliedSweepVelocity}");
+        _debugInfo.PostGroundSweepPosition = _transientPosition;
+
+        // Sweep across applied velocity
+        SweepBodyForCollisions(_appliedSweepVelocity);
+
+        _debugInfo.PostMovementSweepPosition= _transientPosition;
+        Debug.Log($"Applied sweep vector: {_transientPosition - _preSweepPosition}");
+
+
+    }
+
+    public void CheckForEdgeSnapping()
+    {
+        bool leftStableGroundThisFrame = _wasOnStableGroundInPreviousFrame && !IsOnStableGround;
+
+        // Only check for edge snapping if the capsule left stable ground
+        if (leftStableGroundThisFrame)
+        {
+
+
+            float groundAnglePrev = Mathf.Deg2Rad * Vector3.Angle(_groundNormalPrev, _localUpwards);
+
+            // Prevent the maxEdgeSnappingAngle from going "steeper" than vertical
+            float effectiveMaxEdgeSnappingAngle = Mathf.Min(_maxEdgeSnappingAngle, 89.0f + groundAnglePrev);
+
+            float velocitySweepDistance = _appliedSweepVelocity.magnitude;
+
+            // This is the maximum distance in which a valid edge snap could occur.
+            // However, invalid edge snaps are not accounted for.
+            // As long as the capsule speed is reasonably low, this shouldn't be noticable.
+            float beta = 90 - effectiveMaxEdgeSnappingAngle + groundAnglePrev;
+            float maxSnappingDistance = Mathf.Sin(Mathf.Deg2Rad * effectiveMaxEdgeSnappingAngle) * velocitySweepDistance / Mathf.Sin(Mathf.Deg2Rad * beta);
+
+            Vector3 capsuleTopHemi = (_collider.height - _collider.radius) * _localUpwards;
+            Vector3 capsuleBottomHemi = (_collider.radius * _localUpwards);
+
+            bool castHit = Physics.CapsuleCast(
+                point1: _transientPosition + capsuleTopHemi,
+                point2: _transientPosition + capsuleBottomHemi,
+                radius: _collider.radius,
+                direction: -_localUpwards,
+                maxDistance: maxSnappingDistance,
+                hitInfo: out RaycastHit hitInfo,
+                layerMask: _sceneLayer
+            );
+
+            if (castHit)
+            {
+                Debug.Log($"Applied edge snapping: {(hitInfo.distance - _colliderMargin) * -_localUpwards}, transientPosition before: {_transientPosition}");
+
+                _transientPosition += (hitInfo.distance - _colliderMargin) * -_localUpwards;
+                RegisterCollision(hitInfo.collider, hitInfo.normal);
+                Debug.Log($"transientPosition after: {_transientPosition}");
+            }
+        }
+
+        _debugInfo.PostEdgeSnapPosition = _transientPosition;
     }
 
     // Sweeps body in direction of velocity and detects & corrects collisions
@@ -310,7 +391,7 @@ public class KinematicBody : MonoBehaviour
                 _sweepHits,
                 sweepDistance,
                 _sceneLayer
-                );
+            );
             int nbValidHits = nbHits;
 
             RaycastHit closestHit = new();
@@ -348,6 +429,8 @@ public class KinematicBody : MonoBehaviour
             // If hit was valid, execute logic to handle it
             if (nbValidHits > 0)
             {
+                Debug.Log($"Movement sweep hit {closestHit.collider.name}");
+
                 bool isHitStable = IsStableGround(closestHit.normal);
                 bool isCeiling = Vector3.Dot(closestHit.normal, _localUpwards) < -0.05f;
 
@@ -402,7 +485,7 @@ public class KinematicBody : MonoBehaviour
             }
 
             // Show path of sweep
-            if (_showDeltaMovement)
+            if (_showSweepSteps)
             {
                 Debug.DrawLine(previousTransientPosition, _transientPosition, Color.red);
             }
@@ -538,11 +621,14 @@ public class KinematicBody : MonoBehaviour
 
             }
         }
+
+        _debugInfo.PostDepenetrationPosition = _transientPosition;
     }
 
     // Resets variables involved in collision checks
     private void ResetSimulationVariables()
     {
+        _groundNormalPrev = GroundNormal;
         GroundNormal = _localUpwards;
         _wasOnStableGroundInPreviousFrame = IsOnStableGround;
         IsOnStableGround = false;
@@ -569,7 +655,7 @@ public class KinematicBody : MonoBehaviour
         {
             _debugText += $"\nOnStableGround: {IsOnStableGround}";
             _debugText += $"\nGround normal: {GroundNormal}";
-            _debugText += $"\nForce velocity: {ForceVelocity.AppliedVelocity}\nMovement velocity: {_movementVelocity}\nGround velocity: {_groundVelocity}\nResidual ground velocity: {_residualGroundVelocity}\nPre-sweep velocity: {_preSweepVelocity}";
+            _debugText += $"\nForce velocity: {ForceVelocity.AppliedVelocity}\nMovement velocity: {_movementVelocity}\nGround velocity: {_groundVelocity}\nResidual ground velocity: {_residualGroundVelocity}\nPre-sweep velocity: {_appliedSweepVelocity}";
             _debugText += $"\nCurrent mover: {_currentMover?.name ?? "None"}";
             _debugText += $"\nDisplacement: {_debugMoverDisplacement}";
 
@@ -606,8 +692,8 @@ public class KinematicBody : MonoBehaviour
         if (_showSkinCollider)
         {
             Gizmos.color = Color.red;
-            GizmoExtensions.DrawSphere(_postSweepPosition + _collider.radius * _localUpwards, _collider.radius + _colliderMargin);
-            GizmoExtensions.DrawSphere(_postSweepPosition + (_collider.height - _collider.radius) * _localUpwards, _collider.radius + _colliderMargin);
+            GizmoExtensions.DrawSphere(_transientPosition + _collider.radius * _localUpwards, _collider.radius + _colliderMargin);
+            GizmoExtensions.DrawSphere(_transientPosition + (_collider.height - _collider.radius) * _localUpwards, _collider.radius + _colliderMargin);
         }
 
         if (_showGroundNormal)
@@ -619,19 +705,10 @@ public class KinematicBody : MonoBehaviour
         if (_showVelocity)
         {
             Gizmos.color = Color.green;
-            Gizmos.DrawRay(_transientPosition, _preSweepVelocity);
+            Gizmos.DrawRay(_transientPosition, _appliedSweepVelocity);
             Gizmos.color = new Color(1f, 0.5f, 0f, 1f);
             Gizmos.DrawRay(_transientPosition, _postSweepVelocity);
         }
-
-        //if (_showSweep)
-        //{
-        //    Gizmos.color = new Color(1f, 0.7f, 0f, 0.5f);
-        //    Gizmos.DrawWireSphere(_preSweepPosition + _collider.radius * _localUpwards, _collider.radius);
-        //    Gizmos.color = Color.red;
-        //    Gizmos.DrawWireSphere(_postSweepPosition + _collider.radius * _localUpwards, _collider.radius);
-
-        //}
 
         if (_showSweep)
         {
@@ -642,12 +719,51 @@ public class KinematicBody : MonoBehaviour
 
         }
 
-
         if (_showContactSphere)
         {
             Gizmos.color = new Color(1f, 0f, 0f, 0.5f);
-            GizmoExtensions.DrawSphere(_postSweepPosition + _collider.radius * _localUpwards, _collider.radius + _surfaceDetectionRange);
+            GizmoExtensions.DrawSphere(_transientPosition + _collider.radius * _localUpwards, _collider.radius + _surfaceDetectionRange);
+        }
+
+        if(_showStartPosition)
+        {
+            Gizmos.color = Color.red;
+            GizmoExtensions.DrawSphere(_debugInfo.StartPosition + _collider.radius * _localUpwards, _collider.radius);
+        }
+
+        if (_showPostMoverDisplacement)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawRay(_debugInfo.StartPosition, _debugInfo.PostMoverDisplacement - _debugInfo.StartPosition);
+            GizmoExtensions.DrawSphere(_debugInfo.PostMoverDisplacement + _collider.radius * _localUpwards, _collider.radius);
+        }
+
+        if (_showPostGroundSweepPosition)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawRay(_debugInfo.PostMoverDisplacement, _debugInfo.PostGroundSweepPosition - _debugInfo.PostMoverDisplacement);
+            GizmoExtensions.DrawSphere(_debugInfo.PostGroundSweepPosition + _collider.radius * _localUpwards, _collider.radius);
+        }
+
+        if (_showPostMovementSweepPosition)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawRay(_debugInfo.PostGroundSweepPosition, _debugInfo.PostMovementSweepPosition - _debugInfo.PostGroundSweepPosition);
+            GizmoExtensions.DrawSphere(_debugInfo.PostMovementSweepPosition + _collider.radius * _localUpwards, _collider.radius);
+        }
+
+        if (_showPostDepenetrationPosition)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawRay(_debugInfo.PostMovementSweepPosition, _debugInfo.PostDepenetrationPosition - _debugInfo.PostMovementSweepPosition);
+            GizmoExtensions.DrawSphere(_debugInfo.PostDepenetrationPosition + _collider.radius * _localUpwards, _collider.radius);
+        }
+
+        if (_showPostEdgeSnapPosition)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawRay(_debugInfo.PostDepenetrationPosition, _debugInfo.PostEdgeSnapPosition - _debugInfo.PostDepenetrationPosition);
+            GizmoExtensions.DrawSphere(_debugInfo.PostEdgeSnapPosition + _collider.radius * _localUpwards, _collider.radius);
         }
     }
-
 }

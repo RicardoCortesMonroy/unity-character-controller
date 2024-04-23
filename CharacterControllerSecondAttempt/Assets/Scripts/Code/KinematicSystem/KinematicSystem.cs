@@ -60,6 +60,8 @@ public class KinematicSystem : MonoBehaviour
     {
         _simulationStartTime = Time.time;
 
+        Debug.Log($"----------------------Physics frame: {_fixedFrame}----------------------");
+
         if (!_alternateSteps || _fixedFrame % 2 == 0 )
         {
             //Debug.Log($"----------------------Mover frame: {_fixedFrame/2}----------------------");
@@ -90,6 +92,7 @@ public class KinematicSystem : MonoBehaviour
                 body.CalculateVelocity();
                 body.Simulate();
                 body.CollisionCheck();
+                body.CheckForEdgeSnapping();
 
                 body.ApplyTransientTransform();
             }

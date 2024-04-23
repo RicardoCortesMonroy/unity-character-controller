@@ -119,8 +119,8 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
             return basis;
         }
 
-        _forwardBasis = SetBasisFromCamera(_camera.transform.forward);
-        _rightBasis = SetBasisFromCamera(_camera.transform.right);
+        _forwardBasis = SetBasisFromCamera(_forceInput ? Vector3.forward : _camera.transform.forward);
+        _rightBasis = SetBasisFromCamera(_forceInput ? Vector3.right : _camera.transform.right);
 
         Vector3 appliedMovementVector = new();
 
