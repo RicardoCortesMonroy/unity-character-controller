@@ -177,6 +177,7 @@ public class KinematicBody : MonoBehaviour
         {
             IsOnStableGround = true;
             GroundNormal = normal;
+            ForceVelocity.SetVelocity(Vector3.zero);
 
             // Check if ground is a mover and register it if yes
             int hitObjectId = collider.gameObject.GetInstanceID();
@@ -222,8 +223,8 @@ public class KinematicBody : MonoBehaviour
             // (unlike the base or the point of contact)
             Vector3 bottomSphereCentre = _transientPosition + _collider.radius * _localUpwards;
             _groundVelocity = _currentMover.GetTangentialVelocity(bottomSphereCentre);
-            _groundVelocity *= _fractionOfFrameGroundVelocityApplied;
             _residualGroundVelocity = _groundVelocity;
+            _groundVelocity *= _fractionOfFrameGroundVelocityApplied;
         }
         else
         {
