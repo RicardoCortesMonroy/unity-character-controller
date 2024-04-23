@@ -596,8 +596,7 @@ MonoBehaviour:
   _waypoints:
   - {x: 0, y: -2, z: 0}
   - {x: 0, y: 5, z: 0}
-  _maxSpeed: 2.5
-  _timeToAccelerate: 0
+  _speed: 3
   _rotationalAxis: {x: 0, y: 1, z: 0}
   _localAxes: 0
   _angularSpeed: 0
@@ -1114,8 +1113,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _waypoints:
   - {x: 0, y: 0, z: 0}
-  _maxSpeed: 3
-  _timeToAccelerate: 0
+  _speed: 0
   _rotationalAxis: {x: 0, y: 0.9950372, z: 0.099503726}
   _localAxes: 0
   _angularSpeed: 90
@@ -1287,8 +1285,7 @@ MonoBehaviour:
   _waypoints:
   - {x: 0, y: 0, z: 0}
   - {x: 0, y: -8, z: 0}
-  _maxSpeed: 3
-  _timeToAccelerate: 0
+  _speed: 5
   _rotationalAxis: {x: 0, y: 1, z: 0}
   _localAxes: 1
   _angularSpeed: 0
@@ -1639,8 +1636,7 @@ MonoBehaviour:
   _waypoints:
   - {x: 0, y: 0, z: 0}
   - {x: -10, y: 0, z: 0}
-  _maxSpeed: 3
-  _timeToAccelerate: 0
+  _speed: 0
   _rotationalAxis: {x: 0, y: 1, z: 0}
   _localAxes: 1
   _angularSpeed: 0
@@ -1923,9 +1919,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _waypoints:
   - {x: 0, y: 0, z: 0}
-  - {x: 0, y: 300, z: 0}
-  _maxSpeed: 40
-  _timeToAccelerate: 0
+  - {x: 0, y: 70, z: 0}
+  _speed: 40
   _rotationalAxis: {x: 0, y: 1, z: 0}
   _localAxes: 1
   _angularSpeed: 0
@@ -2066,8 +2061,7 @@ MonoBehaviour:
   _waypoints:
   - {x: 0, y: 0, z: 0}
   - {x: 0, y: -10, z: 0}
-  _maxSpeed: 3
-  _timeToAccelerate: 0
+  _speed: 5
   _rotationalAxis: {x: 0, y: 1, z: 0}
   _localAxes: 1
   _angularSpeed: 0
@@ -3262,8 +3256,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _waypoints:
   - {x: 0, y: 0, z: 0}
-  _maxSpeed: 3
-  _timeToAccelerate: 0
+  _speed: 0
   _rotationalAxis: {x: 0, y: 1, z: 0}
   _localAxes: 1
   _angularSpeed: 14.66
@@ -3403,8 +3396,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _waypoints:
   - {x: 0, y: 0, z: 0}
-  _maxSpeed: 3
-  _timeToAccelerate: 0
+  _speed: 0
   _rotationalAxis: {x: 0, y: 1, z: 0}
   _localAxes: 1
   _angularSpeed: 15
@@ -3544,8 +3536,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _waypoints:
   - {x: 0, y: 0, z: 0}
-  _maxSpeed: 3
-  _timeToAccelerate: 0
+  _speed: 0
   _rotationalAxis: {x: 0, y: 0.70710677, z: -0.70710677}
   _localAxes: 0
   _angularSpeed: 40
@@ -3686,8 +3677,7 @@ MonoBehaviour:
   _waypoints:
   - {x: 0, y: 0, z: 0}
   - {x: 0, y: 0, z: 4}
-  _maxSpeed: 2.5
-  _timeToAccelerate: 0
+  _speed: 5
   _rotationalAxis: {x: 0, y: 1, z: 0}
   _localAxes: 1
   _angularSpeed: 0
@@ -3828,8 +3818,7 @@ MonoBehaviour:
   _waypoints:
   - {x: 0, y: 0, z: 0}
   - {x: 0, y: -7.91, z: 0}
-  _maxSpeed: 3
-  _timeToAccelerate: 0
+  _speed: 0
   _rotationalAxis: {x: 0, y: 1, z: 0}
   _localAxes: 1
   _angularSpeed: 0
@@ -4391,8 +4380,7 @@ MonoBehaviour:
   _waypoints:
   - {x: 0, y: 0, z: 0}
   - {x: 0, y: 8, z: 0}
-  _maxSpeed: 3
-  _timeToAccelerate: 0
+  _speed: 5
   _rotationalAxis: {x: 0, y: 1, z: 0}
   _localAxes: 1
   _angularSpeed: 0
@@ -4533,8 +4521,7 @@ MonoBehaviour:
   _waypoints:
   - {x: 0, y: 0, z: 0}
   - {x: 0, y: -8.91, z: 0}
-  _maxSpeed: 3
-  _timeToAccelerate: 0
+  _speed: 5
   _rotationalAxis: {x: 0, y: 1, z: 0}
   _localAxes: 1
   _angularSpeed: 0
@@ -4780,8 +4767,7 @@ MonoBehaviour:
   _waypoints:
   - {x: 0, y: 0, z: 0}
   - {x: 0, y: -10, z: 0}
-  _maxSpeed: 3
-  _timeToAccelerate: 0
+  _speed: 5
   _rotationalAxis: {x: 0, y: 1, z: 0}
   _localAxes: 1
   _angularSpeed: 0
@@ -5027,8 +5013,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _waypoints:
   - {x: 0, y: 0, z: 0}
-  _maxSpeed: 3
-  _timeToAccelerate: 0
+  _speed: 0
   _rotationalAxis: {x: 0, y: 1, z: 0}
   _localAxes: 1
   _angularSpeed: 15
@@ -5376,8 +5361,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _waypoints:
   - {x: 0, y: 0, z: 0}
-  _maxSpeed: 3
-  _timeToAccelerate: 0
+  _speed: 0
   _rotationalAxis: {x: 1, y: 0, z: 0}
   _localAxes: 1
   _angularSpeed: 40
@@ -5518,8 +5502,7 @@ MonoBehaviour:
   _waypoints:
   - {x: 0, y: 0, z: 0}
   - {x: 0, y: 10, z: 0}
-  _maxSpeed: 100
-  _timeToAccelerate: 0
+  _speed: 10
   _rotationalAxis: {x: 0, y: 1, z: 0}
   _localAxes: 1
   _angularSpeed: 0
@@ -5536,7 +5519,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: -3168
+  ColliderInstanceID: 24250
   _useCCD: 1
 --- !u!65 &2034968606
 BoxCollider:
@@ -5660,8 +5643,7 @@ MonoBehaviour:
   _waypoints:
   - {x: 0, y: 0, z: 0}
   - {x: 0, y: 0, z: 20}
-  _maxSpeed: 100
-  _timeToAccelerate: 0
+  _speed: 100
   _rotationalAxis: {x: 0, y: 1, z: 0}
   _localAxes: 1
   _angularSpeed: 0
@@ -5678,7 +5660,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24250
+  ColliderInstanceID: 24264
   _useCCD: 1
 --- !u!65 &2079546118
 BoxCollider:

@@ -62,7 +62,7 @@ public class KinematicSystem : MonoBehaviour
 
         if (!_alternateSteps || _fixedFrame % 2 == 0 )
         {
-            Debug.Log($"----------------------Mover frame: {_fixedFrame/2}----------------------");
+            //Debug.Log($"----------------------Mover frame: {_fixedFrame/2}----------------------");
             foreach (var body in _bodies.Values)
             {
                 body.ApplyTransientTransform();
@@ -81,7 +81,7 @@ public class KinematicSystem : MonoBehaviour
 
         if (!_alternateSteps || _fixedFrame % 2 == 1)
         {
-            Debug.Log($"----------------------Body frame: {_fixedFrame / 2}----------------------");
+            //Debug.Log($"----------------------Body frame: {_fixedFrame / 2}----------------------");
             foreach (var body in _bodies.Values)
             {
                 body.UpdateCurrentPositionAndRotation();
