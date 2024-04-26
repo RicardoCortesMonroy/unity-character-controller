@@ -181,6 +181,8 @@ public class KinematicMover : MonoBehaviour
 
     public void OnDrawGizmos()
     {
+        if (!Application.isPlaying) return;
+
         // Draw sweep
         Gizmos.color = Color.white;
         Gizmos.DrawRay(_boxCastInfo.Origin, _boxCastInfo.Distance * _boxCastInfo.Direction);

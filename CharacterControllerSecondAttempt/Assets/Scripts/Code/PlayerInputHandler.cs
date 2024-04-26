@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -18,6 +19,7 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     [Header("Movement variables")]
     [SerializeField] private float _walkingSpeed = 4;
     [SerializeField] private float _runningSpeed = 8;
+    [SerializeField] private float _thrustAcceleration = 10;
 
     [Space(10)]
     [Header("Jump variables")]
@@ -31,6 +33,7 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     [Space(10)]
     [Header("Miscellaneous")]
     [SerializeField] private float _stableGroundThreshold;
+    [SerializeField] private float _maxEdgeSnappingAngle;
 
     private float _gravityMagnitude;
     private float _initialJumpVelocity;
@@ -51,6 +54,7 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     private bool _isJumpPressed;
     private bool _isJumpQueued;
     private bool _isRunningPressed;
+    private bool _isAccelerating;
     private bool _isMovementPressed;
     private bool _isMovementCanceled;
 
@@ -67,6 +71,9 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
 
         _initialJumpVelocity = (2 * _maxJumpHeight) / _timeToApex;
         _gravityMagnitude = (2 * _maxJumpHeight) / Mathf.Pow(_timeToApex, 2);
+
+        _body.StableGroundThreshold = _stableGroundThreshold;
+        _body.MaxEdgeSnappingAngle = _maxEdgeSnappingAngle;
     }
 
     private void Awake()
@@ -89,11 +96,9 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
 
         _playerInput.CharacterControls.Pause.started += OnPause;
         _playerInput.CharacterControls.Pause.canceled += OnPause;
-    }
 
-    private void Start()
-    {
-        _body.StableGroundThreshold = _stableGroundThreshold;
+        _playerInput.CharacterControls.Accelerate.started += OnAccelerate;
+        _playerInput.CharacterControls.Accelerate.canceled += OnAccelerate;
     }
 
     public void UpdateInputState(ref InputState inputState)
@@ -104,7 +109,7 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
 
         if (_gravityFocus != null)
         {
-            _gravityDirection = (_gravityFocus.position - transform.position).normalized;
+            _gravityDirection = (_gravityFocus.position - _body.CentreOfMass).normalized;
         }
 
         Vector3 appliedGravity = _gravityMagnitude * _gravityDirection;
@@ -119,8 +124,10 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
             return basis;
         }
 
-        _forwardBasis = SetBasisFromCamera(_forceInput ? Vector3.forward : _camera.transform.forward);
-        _rightBasis = SetBasisFromCamera(_forceInput ? Vector3.right : _camera.transform.right);
+        //_forwardBasis = SetBasisFromCamera(_forceInput ? Vector3.forward : _camera.transform.forward);
+        //_rightBasis = SetBasisFromCamera(_forceInput ? Vector3.right : _camera.transform.right);
+        _forwardBasis = SetBasisFromCamera(_camera.transform.forward);
+        _rightBasis = SetBasisFromCamera(_camera.transform.right);
 
         Vector3 appliedMovementVector = new();
 
@@ -193,6 +200,14 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     private void OnRun(InputAction.CallbackContext context)
     {
         _isRunningPressed = context.ReadValueAsButton();
+    }
+
+    private void OnAccelerate(InputAction.CallbackContext context)
+    {
+
+        _isAccelerating = context.ReadValueAsButton();
+        if (context.started) _body.ForceVelocity.Acceleration += _thrustAcceleration * transform.forward;
+        if (context.canceled) _body.ForceVelocity.Acceleration -= _thrustAcceleration * transform.forward;
     }
 
     private void OnMovementInputController(InputAction.CallbackContext context)
