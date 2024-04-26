@@ -257,7 +257,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 39300061}
   m_LocalRotation: {x: -0, y: -0, z: 0.62116414, w: 0.78368056}
-  m_LocalPosition: {x: 6.6, y: 1.17, z: 5.82}
+  m_LocalPosition: {x: 10.89, y: 1.58, z: 5.82}
   m_LocalScale: {x: 5.8098, y: 1, z: 2.1485}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -453,7 +453,7 @@ GameObject:
   - component: {fileID: 54069353}
   - component: {fileID: 54069352}
   m_Layer: 3
-  m_Name: Cube (1)
+  m_Name: Hard incline
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -613,7 +613,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 23816
+  ColliderInstanceID: 23788
   _useCCD: 0
 --- !u!65 &114513215
 BoxCollider:
@@ -1130,7 +1130,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 23866
+  ColliderInstanceID: 23838
   _useCCD: 0
 --- !u!65 &429550093
 BoxCollider:
@@ -1302,7 +1302,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 23884
+  ColliderInstanceID: 23856
   _useCCD: 0
 --- !u!65 &471994656
 BoxCollider:
@@ -1653,7 +1653,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 23918
+  ColliderInstanceID: 23890
   _useCCD: 0
 --- !u!65 &635346962
 BoxCollider:
@@ -1937,7 +1937,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 23946
+  ColliderInstanceID: 23918
   _useCCD: 1
 --- !u!65 &656661848
 BoxCollider:
@@ -2078,7 +2078,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 23960
+  ColliderInstanceID: 23932
   _useCCD: 0
 --- !u!65 &667152163
 BoxCollider:
@@ -2394,7 +2394,7 @@ GameObject:
   - component: {fileID: 759960808}
   - component: {fileID: 759960807}
   m_Layer: 3
-  m_Name: Cube
+  m_Name: Soft incline
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2881,7 +2881,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
   m_LocalRotation: {x: 0, y: 0.9975641, z: -0.06975647, w: 0}
-  m_LocalPosition: {x: 30.3, y: 1.1576235, z: 10.050119}
+  m_LocalPosition: {x: 10, y: 110.02183, z: -7.951801}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3112,9 +3112,11 @@ GameObject:
   - component: {fileID: 1052417306}
   - component: {fileID: 1052417305}
   - component: {fileID: 1052417304}
+  - component: {fileID: 1052417308}
+  - component: {fileID: 1052417307}
   m_Layer: 3
   m_Name: Planet small
-  m_TagString: Untagged
+  m_TagString: KinematicMover
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -3127,7 +3129,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1052417302}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 111.4, z: 0}
+  m_LocalPosition: {x: 0, y: 110, z: 0}
   m_LocalScale: {x: 8.06986, y: 8.06986, z: 8.06986}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3205,6 +3207,39 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1052417302}
   m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1052417307
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1052417302}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1c60fb3bcdf8e674384bcfaa227556b8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _waypoints:
+  - {x: 0, y: 0, z: 0}
+  _speed: 2.5
+  _rotationalAxis: {x: 0, y: 1, z: 0}
+  _localAxes: 0
+  _angularSpeed: -10
+  _angularAcceleration: 0
+--- !u!114 &1052417308
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1052417302}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ColliderInstanceID: 24024
+  _useCCD: 0
 --- !u!1 &1141391661
 GameObject:
   m_ObjectHideFlags: 0
@@ -3272,7 +3307,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24066
+  ColliderInstanceID: 24038
   _useCCD: 0
 --- !u!65 &1141391665
 BoxCollider:
@@ -3412,7 +3447,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24080
+  ColliderInstanceID: 24052
   _useCCD: 0
 --- !u!65 &1147541824
 BoxCollider:
@@ -3552,7 +3587,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24094
+  ColliderInstanceID: 24066
   _useCCD: 0
 --- !u!65 &1161717677
 BoxCollider:
@@ -3693,7 +3728,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24108
+  ColliderInstanceID: 24080
   _useCCD: 0
 --- !u!65 &1167448884
 BoxCollider:
@@ -3834,7 +3869,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24122
+  ColliderInstanceID: 24094
   _useCCD: 0
 --- !u!65 &1178352479
 BoxCollider:
@@ -4235,9 +4270,11 @@ GameObject:
   - component: {fileID: 1392658282}
   - component: {fileID: 1392658281}
   - component: {fileID: 1392658280}
+  - component: {fileID: 1392658284}
+  - component: {fileID: 1392658283}
   m_Layer: 3
   m_Name: Planet
-  m_TagString: Untagged
+  m_TagString: KinematicMover
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -4328,6 +4365,39 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1392658278}
   m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1392658283
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1392658278}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1c60fb3bcdf8e674384bcfaa227556b8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _waypoints:
+  - {x: 0, y: 0, z: 0}
+  _speed: 10
+  _rotationalAxis: {x: 0, y: 1, z: 0}
+  _localAxes: 1
+  _angularSpeed: 10
+  _angularAcceleration: 0
+--- !u!114 &1392658284
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1392658278}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ColliderInstanceID: 24134
+  _useCCD: 0
 --- !u!1 &1590880256
 GameObject:
   m_ObjectHideFlags: 0
@@ -4396,7 +4466,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24176
+  ColliderInstanceID: 24148
   _useCCD: 0
 --- !u!65 &1590880260
 BoxCollider:
@@ -4537,7 +4607,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24190
+  ColliderInstanceID: 24162
   _useCCD: 0
 --- !u!65 &1613522193
 BoxCollider:
@@ -4783,7 +4853,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24214
+  ColliderInstanceID: 24186
   _useCCD: 0
 --- !u!65 &1775314626
 BoxCollider:
@@ -4883,7 +4953,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1788228425}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 30.3, y: 1, z: 16.06}
+  m_LocalPosition: {x: 10, y: 110, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -4904,23 +4974,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _debug: {fileID: 921038996}
-  _transientPosition: {x: 30.3, y: 1, z: 16.06}
+  _transientPosition: {x: 10, y: 110, z: 0}
   _moverVelocityDecayFactor: 0
   _showDebugText: 1
   _showGroundNormal: 0
   _showVelocity: 0
   _showMovingPlatformContactPoints: 0
   _showSweep: 0
-  _showSweepSteps: 0
+  _showSweepSteps: 1
   _showStartPosition: 1
   _showPostMoverDisplacement: 1
   _showPostGroundSweepPosition: 1
   _showPostMovementSweepPosition: 1
   _showPostDepenetrationPosition: 1
-  _showPostEdgeSnapPosition: 1
+  _showPostEdgeSnapPosition: 0
   _showCollider: 1
   _showColliderMargin: 1
   _showSurfaceDetectionRange: 1
+  _showTopSphere: 1
 --- !u!136 &1788228428
 CapsuleCollider:
   m_ObjectHideFlags: 8
@@ -4958,7 +5029,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _gravityFocus: {fileID: 0}
   _forceInput: 0
-  _forcedMovementInput: {x: 0.01, y: -1}
+  _forcedMovementInput: {x: -1, y: 0}
   _walkingSpeed: 5
   _runningSpeed: 12
   _thrustAcceleration: 10
@@ -5037,7 +5108,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24238
+  ColliderInstanceID: 24210
   _useCCD: 0
 --- !u!65 &1880013575
 BoxCollider:
@@ -5385,7 +5456,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24272
+  ColliderInstanceID: 24244
   _useCCD: 0
 --- !u!65 &1993941837
 BoxCollider:
@@ -5526,7 +5597,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24286
+  ColliderInstanceID: 24258
   _useCCD: 1
 --- !u!65 &2034968606
 BoxCollider:
@@ -5667,7 +5738,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24300
+  ColliderInstanceID: 24272
   _useCCD: 1
 --- !u!65 &2079546118
 BoxCollider:

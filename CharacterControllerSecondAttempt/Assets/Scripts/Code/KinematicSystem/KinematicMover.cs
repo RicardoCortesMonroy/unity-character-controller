@@ -48,6 +48,20 @@ public class KinematicMover : MonoBehaviour
 
     private BoxCastInfo _boxCastInfo;
 
+    public static int Compare(Collider c1, Collider c2)
+    {
+        // Order should be: Static Collider < Kinematic Mover < null
+
+        if (c1 == null && c2 != null) return 1;
+        if (c2 == null && c1 != null) return -1;
+        if (c1 == null && c2 == null) return 0;
+
+        if (c1.IsKinematicMover() && !c2.IsKinematicMover()) return 1;
+        if (c2.IsKinematicMover() && !c1.IsKinematicMover()) return -1;
+
+        return 0;
+    }
+
     public void OnValidate()
     {
         // Delay call until after inspector refreshes.
@@ -176,8 +190,6 @@ public class KinematicMover : MonoBehaviour
             ApplyTransientTransform();
         }
     }
-
-    private float angleY;
 
     public void OnDrawGizmos()
     {

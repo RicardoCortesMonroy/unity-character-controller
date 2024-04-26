@@ -72,4 +72,9 @@ public static class ExtensionMethods
     {
         return $"({vector.x},{vector.y},{vector.z})";
     }
+
+    public static bool IsKinematicMover(this Collider collider)
+    {
+        return collider.CompareTag(KinematicMover.Tag);
+    }
 }

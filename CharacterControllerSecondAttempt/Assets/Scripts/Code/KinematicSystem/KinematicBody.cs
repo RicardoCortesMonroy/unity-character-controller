@@ -87,13 +87,13 @@ public class KinematicBody : MonoBehaviour
     // Sweep variables
     private RaycastHit[] _sweepHits = new RaycastHit[8];
     private int _maxSweeps = 8;
-    private float _colliderMargin = 0.1f; // distance repelled from a collision point within the next frame. Ensures there's always a small gap between colliders
+    private float _colliderMargin = 0.01f; // distance repelled from a collision point within the next frame. Ensures there's always a small gap between colliders
 
     // Surface detection variables
     private Collider[] _collidersTouching = new Collider[8];
     private Vector3[] _collidersTouchingNormals = new Vector3[8];
     private int _nbCollidersTouching;
-    private float _surfaceDetectionRange = 0.2f; // maximum distance away from collider in which the body is considered "touching" a surface
+    private float _surfaceDetectionRange = 0.02f; // maximum distance away from collider in which the body is considered "touching" a surface
     readonly private int _maxPenetrationChecks = 10;
 
     // Collision interactions
@@ -120,6 +120,7 @@ public class KinematicBody : MonoBehaviour
     [SerializeField] private bool _showCollider;
     [SerializeField] private bool _showColliderMargin;
     [SerializeField] private bool _showSurfaceDetectionRange;
+    [SerializeField] private bool _showTopSphere;
 
     // Velocity tracking
     private Vector3 _appliedSweepVelocity;
@@ -386,11 +387,6 @@ public class KinematicBody : MonoBehaviour
                 // "Depenetrate" using the just-registered ground normal
                 //_transientPosition += (_surfaceDetectionRange - _colliderMargin) * GroundNormal;
             }
-            else
-            {
-                Debug.Log($"EdgeSnapping failed");
-
-            }
         }
 
         _debugInfo.PostEdgeSnapPosition = _transientPosition;
@@ -463,7 +459,7 @@ public class KinematicBody : MonoBehaviour
                 Vector3 effectiveNormal = closestHit.normal;
 
                 // If body is currently on stable ground and will collide with unstable ground, treat the unstable ground as a perpendicular obstacle
-                if (!isHitStable && _wasOnStableGroundInPreviousFrame)
+                if (!isHitStable && IsOnStableGround)
                 {
                     effectiveNormal = Vector3.Cross(GroundNormal, Vector3.Cross(closestHit.normal, _localUpwards));
 
@@ -474,13 +470,13 @@ public class KinematicBody : MonoBehaviour
                 }
 
                 // If body is going to hit stable ground, and was not on stable ground in the previous frame, terminate the sweep
-                if (isHitStable && !_wasOnStableGroundInPreviousFrame)
+                if (isHitStable && !IsOnStableGround)
                 {
                     terminateSweep = true;
                 }
 
                 // If body is going to hit stable ground, reset the force velocity
-                if (isHitStable || (!_wasOnStableGroundInPreviousFrame && IsOnStableGround))
+                if (isHitStable)
                 {
                     ForceVelocity.SetVelocity(Vector3.zero);
                 }
@@ -513,7 +509,7 @@ public class KinematicBody : MonoBehaviour
             // Show path of sweep
             if (_showSweepSteps)
             {
-                Debug.DrawLine(previousTransientPosition, _transientPosition, Color.red);
+                Debug.DrawLine(previousTransientPosition, _transientPosition, Color.blue);
             }
 
             // Break if no more collisions or if termination is called
@@ -552,15 +548,15 @@ public class KinematicBody : MonoBehaviour
             // Assume no overlap at first, then set terminatePenetrationChecks to false if we detect an overlap
             terminatePenetrationChecks = true;
 
+
             // Compute penetration and register contact for each collider
-            for (int j = 0; j < _nbCollidersTouching; j++)
+            for ( int j = 0; j < _nbCollidersTouching; j++)
             {
                 Collider surfaceCollider = _collidersTouching[j];
-
                 // If we're doing a collision check (!depenetrateOnly) and we're at the last penetration check
                 // then reconcile the overlap by ignoring any collider that belongs to a mover
                 // This will effectively give priority to non-movers if overlap is unsolvable
-                if (!depenetrateOnly && i == _maxPenetrationChecks - 1 && surfaceCollider.CompareTag(KinematicMover.Tag))
+                if (!depenetrateOnly && i == _maxPenetrationChecks - 1 && surfaceCollider.IsKinematicMover())
                 {
                     continue;
                 }
@@ -605,15 +601,43 @@ public class KinematicBody : MonoBehaviour
                     bool onStableGroundAtBeginningOfFrame = (depenetrateOnly && IsOnStableGround) || (!depenetrateOnly && _wasOnStableGroundInPreviousFrame);
                     bool onMoverAndCollidingWithStatic = (_currentMover != null) && (!surfaceCollider.CompareTag(KinematicMover.Tag));
 
+                    // Only constrain overlap to ground normal if it's from a steep wall (not a ceiling, or stable ground)
+                    float surfaceAngle = Vector3.Angle(_localUpwards, nearestDirection);
+                    bool surfaceIsSteep = surfaceAngle > StableGroundThreshold && surfaceAngle < 90f;
+
+
                     // If we were on stable ground at the beginning of the frame, constrain overlap correction to the plane of the ground
                     // EXCEPT in the case where we're on a mover and colliding with a static collider
                     // This is because if we're being squeezed between a mover and a static collider,
                     // we want to be squeezed through the mover, thereby prioritizing the collision correction from the static collider
                     if (onStableGroundAtBeginningOfFrame && !onMoverAndCollidingWithStatic)
                     {
-                        overlapCorrection = overlapCorrection.Constrain(GroundNormal, min: 0f);
+                        // Steep inclines
+                        if (surfaceIsSteep)
+                        {
+                            // o = |o_0| (n1 x n2) x n1 / sin(theta)^2
+                            // o: new overlapCorrection
+                            // o_0: original overlapCorrection
+                            // n1: stable ground normal (GroundNormal)
+                            // n2: current depenetration normal (nearestDirection)
+                            // theta: angle between normals
+                            // Reminder that |(n1 x n2) x n1| = sin(theta)
+
+                            // flattenedOverlapVector is the direction of overlap correction constrained to the current ground normal
+                            Vector3 flattenedOverlapVector = Vector3.Cross(Vector3.Cross(_groundNormalPrev, nearestDirection), _groundNormalPrev);
+                            float correctionFactor = overlapDistance / flattenedOverlapVector.sqrMagnitude;
+
+                            overlapCorrection = correctionFactor * flattenedOverlapVector;
+
+                        }
+                        // Stable ground or ceilings
+                        else
+                        {
+                            overlapCorrection = overlapCorrection.Constrain(_groundNormalPrev, 0f);
+                        }
                     }
 
+                    Debug.Log($"Depenetration applied from {surfaceCollider.name}, depenetration number: {i}");
                     _transientPosition += overlapCorrection;
                     terminatePenetrationChecks = false;
                 }
@@ -753,6 +777,7 @@ public class KinematicBody : MonoBehaviour
             _showPostEdgeSnapPosition
         };
 
+        Vector3 topOffset = (_collider.height - 2 * _collider.radius) * _localUpwards;
         List<Vector3> debugPositions = new List<Vector3>
         {
             _debugInfo.StartPosition,
@@ -774,18 +799,21 @@ public class KinematicBody : MonoBehaviour
             if (_showCollider)
             {
                 GizmoExtensions.DrawSphere(position + _collider.radius * _localUpwards, _collider.radius);
+                if(_showTopSphere) GizmoExtensions.DrawSphere(position + topOffset + _collider.radius * _localUpwards, _collider.radius);
             }
 
             if (_showColliderMargin)
             {
                 Gizmos.color = Color.yellow;
                 GizmoExtensions.DrawSphere(position + _collider.radius * _localUpwards, _collider.radius + _colliderMargin);
+                if (_showTopSphere) GizmoExtensions.DrawSphere(position + topOffset + _collider.radius * _localUpwards, _collider.radius + _colliderMargin);
             }
 
             if (_showSurfaceDetectionRange)
             {
                 Gizmos.color = Color.green;
                 GizmoExtensions.DrawSphere(position + _collider.radius * _localUpwards, _collider.radius + _surfaceDetectionRange);
+                if (_showTopSphere) GizmoExtensions.DrawSphere(position + topOffset + _collider.radius * _localUpwards, _collider.radius + _surfaceDetectionRange);
             }
         }
 

@@ -18,7 +18,7 @@ public class KinematicSystem : MonoBehaviour
     private static Dictionary<int, KinematicBody> _bodies = new();
     private static Dictionary<int, KinematicMover> _movers = new();
 
-    private bool _interpolate = false;
+    private bool _interpolate = true;
     private bool _alternateSteps = false;
 
     private int _fixedFrame;
@@ -60,7 +60,7 @@ public class KinematicSystem : MonoBehaviour
     {
         _simulationStartTime = Time.time;
 
-        Debug.Log($"----------------------Physics frame: {_fixedFrame}----------------------");
+        //Debug.Log($"----------------------Physics frame: {_fixedFrame}----------------------");
 
         if (!_alternateSteps || _fixedFrame % 2 == 0 )
         {
