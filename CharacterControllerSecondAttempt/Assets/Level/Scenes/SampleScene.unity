@@ -613,7 +613,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 23786
+  ColliderInstanceID: 23816
   _useCCD: 0
 --- !u!65 &114513215
 BoxCollider:
@@ -1130,7 +1130,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 23846
+  ColliderInstanceID: 23866
   _useCCD: 0
 --- !u!65 &429550093
 BoxCollider:
@@ -1302,7 +1302,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 23864
+  ColliderInstanceID: 23884
   _useCCD: 0
 --- !u!65 &471994656
 BoxCollider:
@@ -1653,7 +1653,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 23898
+  ColliderInstanceID: 23918
   _useCCD: 0
 --- !u!65 &635346962
 BoxCollider:
@@ -1937,7 +1937,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 23926
+  ColliderInstanceID: 23946
   _useCCD: 1
 --- !u!65 &656661848
 BoxCollider:
@@ -2078,7 +2078,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 23940
+  ColliderInstanceID: 23960
   _useCCD: 0
 --- !u!65 &667152163
 BoxCollider:
@@ -2618,7 +2618,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 5, y: 5}
+  m_AnchoredPosition: {x: 5, y: 0}
   m_SizeDelta: {x: 2000, y: 1000}
   m_Pivot: {x: 0, y: 0}
 --- !u!1 &957794283
@@ -2881,7 +2881,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
   m_LocalRotation: {x: 0, y: 0.9975641, z: -0.06975647, w: 0}
-  m_LocalPosition: {x: 30.3, y: 1.0218312, z: 8.108198}
+  m_LocalPosition: {x: 30.3, y: 1.1576235, z: 10.050119}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3272,7 +3272,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24046
+  ColliderInstanceID: 24066
   _useCCD: 0
 --- !u!65 &1141391665
 BoxCollider:
@@ -3412,7 +3412,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24060
+  ColliderInstanceID: 24080
   _useCCD: 0
 --- !u!65 &1147541824
 BoxCollider:
@@ -3552,7 +3552,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24074
+  ColliderInstanceID: 24094
   _useCCD: 0
 --- !u!65 &1161717677
 BoxCollider:
@@ -3693,7 +3693,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24088
+  ColliderInstanceID: 24108
   _useCCD: 0
 --- !u!65 &1167448884
 BoxCollider:
@@ -3834,7 +3834,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24102
+  ColliderInstanceID: 24122
   _useCCD: 0
 --- !u!65 &1178352479
 BoxCollider:
@@ -4396,7 +4396,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24156
+  ColliderInstanceID: 24176
   _useCCD: 0
 --- !u!65 &1590880260
 BoxCollider:
@@ -4537,7 +4537,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24170
+  ColliderInstanceID: 24190
   _useCCD: 0
 --- !u!65 &1613522193
 BoxCollider:
@@ -4783,7 +4783,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24194
+  ColliderInstanceID: 24214
   _useCCD: 0
 --- !u!65 &1775314626
 BoxCollider:
@@ -4957,7 +4957,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _gravityFocus: {fileID: 0}
-  _forceInput: 1
+  _forceInput: 0
   _forcedMovementInput: {x: 0.01, y: -1}
   _walkingSpeed: 5
   _runningSpeed: 12
@@ -4968,7 +4968,7 @@ MonoBehaviour:
   _aerialAcceleration: 50
   _gravityDirection: {x: 0, y: -1, z: 0}
   _gravityReleaseMultiplier: 1.5
-  _stableGroundThreshold: 60
+  _stableGroundThreshold: 60.1
   _maxEdgeSnappingAngle: 30
 --- !u!1 &1880013571
 GameObject:
@@ -5037,7 +5037,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24218
+  ColliderInstanceID: 24238
   _useCCD: 0
 --- !u!65 &1880013575
 BoxCollider:
@@ -5385,7 +5385,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24252
+  ColliderInstanceID: 24272
   _useCCD: 0
 --- !u!65 &1993941837
 BoxCollider:
@@ -5526,7 +5526,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24266
+  ColliderInstanceID: 24286
   _useCCD: 1
 --- !u!65 &2034968606
 BoxCollider:
@@ -5667,7 +5667,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fb7a87fc32517c42a872554bfe729dd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ColliderInstanceID: 24280
+  ColliderInstanceID: 24300
   _useCCD: 1
 --- !u!65 &2079546118
 BoxCollider:
