@@ -684,8 +684,10 @@ public class KinematicBody : MonoBehaviour
                     {
 
                         // If the collider is a rigidbody, then stop it from pushing body
+                        // (only if body is at rest)
                         Rigidbody rb = hit.collider.GetComponent<Rigidbody>();
-                        if (rb != null)
+                        bool bodyAtRest = Mathf.Approximately((_movementVelocity + ForceVelocity.AppliedVelocity).sqrMagnitude, 0f);
+                        if (rb != null && bodyAtRest)
                         {
                             Vector3 relativeVelocity = rb.velocity - _appliedSweepVelocity;
                             rb.velocity -= relativeVelocity.GetComponent(hit.normal);

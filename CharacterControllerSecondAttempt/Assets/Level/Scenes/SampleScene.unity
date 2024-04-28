@@ -784,7 +784,7 @@ GameObject:
   - component: {fileID: 242297674}
   m_Layer: 3
   m_Name: Wall
-  m_TagString: Untagged
+  m_TagString: KinematicMover
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -2410,7 +2410,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 690519130}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 2.05, z: 0}
+  m_LocalPosition: {x: 0, y: 20, z: 0}
   m_LocalScale: {x: 3.77, y: 3.77, z: 3.77}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -3147,7 +3147,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
   m_LocalRotation: {x: 0, y: 0.9975641, z: -0.06975647, w: 0}
-  m_LocalPosition: {x: 0, y: 5.021831, z: -7.951801}
+  m_LocalPosition: {x: 0, y: 21.021832, z: -7.951801}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5219,7 +5219,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1788228425}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 5, z: 0}
+  m_LocalPosition: {x: 0, y: 21, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -5241,7 +5241,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _mass: 1
   _debug: {fileID: 921038996}
-  _transientPosition: {x: 0, y: 5, z: 0}
+  _transientPosition: {x: 0, y: 21, z: 0}
   _moverVelocityDecayFactor: 0
   _showDebugText: 1
   _showGroundNormal: 0
