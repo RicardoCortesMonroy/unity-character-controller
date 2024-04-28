@@ -33,8 +33,9 @@ public struct KinematicBodyDebugInfo
 [RequireComponent(typeof(CapsuleCollider))]
 public class KinematicBody : MonoBehaviour
 {
+    public float Mass { get { return _mass; } }
     public Vector3 LocalUpwards { get { return _localUpwards; } }
-    public Vector3 CentreOfMass { get { return transform.position + (_collider.radius + 0.5f * _collider.height) * transform.up;  } }
+    public Vector3 CentreOfMass { get { return transform.position + (_collider.radius + 0.5f * _collider.height) * transform.up; } }
     public bool IsOnStableGround { get; private set; } // was the body on stable ground at the beginning of this frame?
     public Vector3 GroundNormal { get; private set; }
 
@@ -44,6 +45,8 @@ public class KinematicBody : MonoBehaviour
 
 
     // PRIVATE MEMBERS:
+
+    [SerializeField] private float _mass;
 
     private Transform _transform;
     private CapsuleCollider _collider;
@@ -190,8 +193,8 @@ public class KinematicBody : MonoBehaviour
         Vector3 relativeBodyVelocity = _groundVelocity + ForceVelocity.AppliedVelocity - moverVelocity;
         float bodyVelocityDotMoverNormal = Vector3.Dot(relativeBodyVelocity, groundNormal);
         if (bodyVelocityDotMoverNormal > 0) return;
-        
-        
+
+
         RegisterCollision(mover, groundNormal);
 
         if (mover.gameObject != _currentMover?.gameObject)
@@ -242,12 +245,12 @@ public class KinematicBody : MonoBehaviour
         _controller?.UpdateInputState(ref _inputState);
         _movementVelocity = _inputState.MovementVelocity;
         ForceVelocity.Acceleration = _inputState.Gravity;
-        
+
         if (_inputState.Gravity != Vector3.zero)
         {
             _localUpwards = -_inputState.Gravity.normalized;
         }
-        
+
 
         // Impulse calculations
         _isImpulseThisFrame = _inputState.ImpulseThisFrame.sqrMagnitude > 0f;
@@ -324,7 +327,7 @@ public class KinematicBody : MonoBehaviour
         // Sweep across applied velocity
         SweepBodyForCollisions(_appliedSweepVelocity);
 
-        _debugInfo.PostMovementSweepPosition= _transientPosition;
+        _debugInfo.PostMovementSweepPosition = _transientPosition;
 
 
     }
@@ -366,11 +369,9 @@ public class KinematicBody : MonoBehaviour
 
             RaycastHit closestHit = _sweepHits[0];
 
-            Debug.Log($"Edge snapping, hit: {closestHit.collider.name}");
 
-            for ( int i = 1; i < nbHits; i++ )
+            for (int i = 1; i < nbHits; i++)
             {
-                Debug.Log($"Edge snapping, hit: {_sweepHits[i].collider.name}");
                 if (_sweepHits[i].distance < closestHit.distance)
                 {
                     closestHit = _sweepHits[i];
@@ -457,6 +458,24 @@ public class KinematicBody : MonoBehaviour
                 bool isCeiling = Vector3.Dot(closestHit.normal, _localUpwards) < -0.05f;
 
                 Vector3 effectiveNormal = closestHit.normal;
+
+                // Check if the hit is a rigidbody, and apply force as necessary
+                Rigidbody rb = closestHit.collider.GetComponent<Rigidbody>();
+                if (rb != null)
+                {
+                    Vector3 v_ai = appliedVelocity;
+                    Vector3 v_bi = rb.velocity;
+                    float m_a = _mass;
+                    float m_b = rb.mass;
+
+                    Vector3 v_b = (2 * m_a / (m_a + m_b)) * v_ai + ((m_b - m_a) / (m_a + m_b)) * v_bi;
+
+                    Vector3 delta_p_b = m_b * (v_b - v_bi);
+                    Vector3 F_b = delta_p_b / 0.1f;
+
+                    Debug.Log($"Colliding with RB, applying force {F_b} at {closestHit.point}");
+                    rb.AddForceAtPosition(F_b, closestHit.point, ForceMode.Force);
+                }
 
                 // If body is currently on stable ground and will collide with unstable ground, treat the unstable ground as a perpendicular obstacle
                 if (!isHitStable && IsOnStableGround)
@@ -550,9 +569,11 @@ public class KinematicBody : MonoBehaviour
 
 
             // Compute penetration and register contact for each collider
-            for ( int j = 0; j < _nbCollidersTouching; j++)
+            for (int j = 0; j < _nbCollidersTouching; j++)
             {
                 Collider surfaceCollider = _collidersTouching[j];
+
+
                 // If we're doing a collision check (!depenetrateOnly) and we're at the last penetration check
                 // then reconcile the overlap by ignoring any collider that belongs to a mover
                 // This will effectively give priority to non-movers if overlap is unsolvable
@@ -637,7 +658,6 @@ public class KinematicBody : MonoBehaviour
                         }
                     }
 
-                    Debug.Log($"Depenetration applied from {surfaceCollider.name}, depenetration number: {i}");
                     _transientPosition += overlapCorrection;
                     terminatePenetrationChecks = false;
                 }
@@ -662,6 +682,15 @@ public class KinematicBody : MonoBehaviour
                     RaycastHit hit = _sweepHits[h];
                     if (hit.collider == surfaceCollider)
                     {
+
+                        // If the collider is a rigidbody, then stop it from pushing body
+                        Rigidbody rb = hit.collider.GetComponent<Rigidbody>();
+                        if (rb != null)
+                        {
+                            Vector3 relativeVelocity = rb.velocity - _appliedSweepVelocity;
+                            rb.velocity -= relativeVelocity.GetComponent(hit.normal);
+                        }
+
                         // Register contact
                         _collidersTouchingNormals[j] = hit.normal;
                         RegisterCollision(hit.collider, hit.normal);
@@ -794,12 +823,12 @@ public class KinematicBody : MonoBehaviour
 
             Vector3 position = debugPositions[i];
             Gizmos.color = Color.red;
-            if (i > 0) Gizmos.DrawRay(debugPositions[i-1], position - debugPositions[i - 1]);
+            if (i > 0) Gizmos.DrawRay(debugPositions[i - 1], position - debugPositions[i - 1]);
 
             if (_showCollider)
             {
                 GizmoExtensions.DrawSphere(position + _collider.radius * _localUpwards, _collider.radius);
-                if(_showTopSphere) GizmoExtensions.DrawSphere(position + topOffset + _collider.radius * _localUpwards, _collider.radius);
+                if (_showTopSphere) GizmoExtensions.DrawSphere(position + topOffset + _collider.radius * _localUpwards, _collider.radius);
             }
 
             if (_showColliderMargin)
