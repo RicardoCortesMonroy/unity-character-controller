@@ -19,7 +19,6 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     [Header("Movement variables")]
     [SerializeField] private float _walkingSpeed = 4;
     [SerializeField] private float _runningSpeed = 8;
-    [SerializeField] private float _thrustAcceleration = 10;
 
     [Space(10)]
     [Header("Jump variables")]
@@ -34,6 +33,8 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     [Header("Miscellaneous")]
     [SerializeField] private float _stableGroundThreshold;
     [SerializeField] private float _maxEdgeSnappingAngle;
+    [SerializeField] private float _shimmyAngleTolerance = 5f;
+
 
     private float _gravityMagnitude;
     private float _initialJumpVelocity;
@@ -121,6 +122,7 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
             return basis;
         }
 
+        Debug.Log($"Setting bases with GroundNormal: {_body.GroundNormal}");
         //_forwardBasis = SetBasisFromCamera(_forceInput ? Vector3.forward : _camera.transform.forward);
         //_rightBasis = SetBasisFromCamera(_forceInput ? Vector3.right : _camera.transform.right);
         _forwardBasis = SetBasisFromCamera(_camera.transform.forward);
@@ -128,14 +130,30 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
 
         Vector3 appliedMovementVector = new();
 
-        // Applying input. Note that appliedMovementDirection is not necessarily normalized (can be <1 for joysticks)
+        // Applying input. Note that appliedMovementVector is not necessarily normalized (can be <1 for joysticks)
         appliedMovementVector.x = appliedInput.x * _rightBasis.x + appliedInput.y * _forwardBasis.x;
         appliedMovementVector.y = appliedInput.x * _rightBasis.y + appliedInput.y * _forwardBasis.y;
         appliedMovementVector.z = appliedInput.x * _rightBasis.z + appliedInput.y * _forwardBasis.z;
-
-        // Immediate movement if grounded, accelerated movement if in air
+                
+        // Different movement modes
         if (_body.IsOnStableGround)
         {
+            inputState.MovementVelocity = appliedMovementVector * appliedSpeed;
+        }
+        else if (_body.IsHangingOnLedge)
+        {
+            // Keep capsule against ledge if moving towards it
+            // Otherwise release it from the ledge
+            float shimmyAngle = Vector3.Angle(appliedMovementVector, _body.LedgeNormal);
+            if (inputState.IsMoving && shimmyAngle < 90 - _shimmyAngleTolerance)
+            {
+                inputState.ReleaseFromLedge = true;
+            }
+            else
+            {
+                appliedMovementVector = appliedMovementVector.With(_body.LedgeNormal, 0f);
+            }
+            
             inputState.MovementVelocity = appliedMovementVector * appliedSpeed;
         }
         else
@@ -150,10 +168,20 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
             inputState.MovementVelocity = Vector3.Lerp(inputState.MovementVelocity, targetAerialVelocity, interpolationFactor);
         }
 
+        // Player should be facing the wall when hanging
+        if (_body.IsHangingOnLedge && !inputState.ReleaseFromLedge)
+        {
+            _targetLookToVector = -_body.LedgeNormal;
+            _appliedLookToVector = _targetLookToVector;
+
+            Debug.DrawRay(transform.position, 2f * _body.LedgeNormal, Color.magenta);
+            Debug.Log($"Constraining target look vector to ledge normal");
+        }
         // Only update active movement direction when movement is pressed.
         // Keeps track of how the player was last moving in previous input
-        if (inputState.IsMoving)
+        else if (inputState.IsMoving)
         {
+            Debug.Log($"Aligning target look vector to movement velocity");
             _targetLookToVector = inputState.MovementVelocity.normalized;
         }
 
@@ -189,8 +217,8 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     private void OnJump(InputAction.CallbackContext context)
     {
         _isJumpPressed = context.ReadValueAsButton();
-        // Only trigger jump on the frame that you press jump if you're grounded (prevents holding jump to jump repeatedly)
-        if (context.started && _body.IsOnStableGround) _isJumpQueued = true;
+
+        if (context.started && (_body.IsOnStableGround || _body.IsHangingOnLedge)) _isJumpQueued = true;
         if (context.canceled) _isJumpQueued = false;
     }
 

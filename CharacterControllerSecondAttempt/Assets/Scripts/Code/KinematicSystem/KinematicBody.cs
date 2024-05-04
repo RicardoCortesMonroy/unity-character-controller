@@ -16,9 +16,10 @@ public struct InputState
     public Vector3 Gravity;
     public bool IsMoving;
     public bool MovementCanceledThisFrame;
+    public bool ReleaseFromLedge;
 }
 
-public struct KinematicBodyDebugInfo
+public struct KinematicBodyStateLog
 {
     public Vector3 StartPosition;
     public Vector3 PostMoverDisplacement;
@@ -26,6 +27,7 @@ public struct KinematicBodyDebugInfo
     public Vector3 PostMovementSweepPosition;
     public Vector3 PostDepenetrationPosition;
     public Vector3 PostEdgeSnapPosition;
+    public Vector3 PostLedgeGrabPosition;
 
     public float MaxEdgeSnappingDistance;
 }
@@ -43,6 +45,8 @@ public class KinematicBody : MonoBehaviour
     public VerletVelocity ForceVelocity = new();
     public float StableGroundThreshold { get; set; } // deg
     public float MaxEdgeSnappingAngle { get; set; }
+    public bool IsHangingOnLedge { get; private set; }
+    public Vector3 LedgeNormal { get; private set; }
 
 
     // PRIVATE MEMBERS:
@@ -71,7 +75,7 @@ public class KinematicBody : MonoBehaviour
     private string _debugText;
 
     InputState _inputState;
-    KinematicBodyDebugInfo _debugInfo;
+    KinematicBodyStateLog _stateLog;
 
     // Velocity components
     private Vector3 _movementVelocity;
@@ -85,14 +89,15 @@ public class KinematicBody : MonoBehaviour
     private Vector3 _transientPosition;
     private Quaternion _currentRotation;
     private Quaternion _transientRotation;
-    private Vector3 _lookToVector = Vector3.forward;
-    private Vector3 _localUpwards = Vector3.up;
+    private Vector3 _lookToVector;
+    private Vector3 _localUpwards;
 
 
     // Grounded-related variables
     private Vector3 _groundNormalPrev;
 
     private bool _wasOnStableGroundInPreviousFrame;
+    private bool _wasHangingInPreviousFrame;
 
     // Sweep variables
     readonly private int _maxSweeps = 8;
@@ -111,6 +116,12 @@ public class KinematicBody : MonoBehaviour
 
     private LayerMask _sceneLayer;
 
+    // Ledge grabbing
+    private float _ledgeGrabbingReach = 0.5f;
+    private float _ledgeGrabHangLevel = 0.7f; // fraction along the capsule at which it hangs, 1 being the top and 0 the bottom.
+                                              // Think of it as an "eye level" if the capsule was looking flush with the top of the ledge
+    private float _ledgeTopAngleTolerance = 15f; // deg
+    private float _ledgeEdgeAngleMaximum = 95f;
 
     // Debug variables
     [Space(20)]
@@ -128,6 +139,7 @@ public class KinematicBody : MonoBehaviour
     [SerializeField] private bool _showPostMovementSweepPosition;
     [SerializeField] private bool _showPostDepenetrationPosition;
     [SerializeField] private bool _showPostEdgeSnapPosition;
+    [SerializeField] private bool _showPostLedgeGrabPosition;
 
     [Space(10)]
     [SerializeField] private bool _showCollider;
@@ -170,6 +182,9 @@ public class KinematicBody : MonoBehaviour
         _sceneLayer = LayerMask.GetMask("Scene");
 
         GroundNormal = _localUpwards;
+        LedgeNormal = -_transform.forward;
+        IsOnStableGround = false;
+        IsHangingOnLedge = false;
     }
 
     private void OnEditorPause(PauseState pauseState)
@@ -187,6 +202,9 @@ public class KinematicBody : MonoBehaviour
 
         _currentRotation = _transform.rotation;
         _transientRotation = _transform.rotation;
+
+        _lookToVector = _transform.forward;
+        _localUpwards = _transform.up;
     }
 
     private void ConfigureCapsule()
@@ -235,10 +253,15 @@ public class KinematicBody : MonoBehaviour
             GroundNormal = normal;
             ForceVelocity.SetVelocity(Vector3.zero);
 
-            // Check if ground is a mover and register it if yes
-            int hitObjectId = collider.gameObject.GetInstanceID();
-            _currentMover = KinematicSystem.CheckMover(hitObjectId);
+            RegisterMover(collider);
         }
+    }
+
+    private void RegisterMover(Collider collider)
+    {
+        // Check if ground is a mover and register it if yes
+        int hitObjectId = collider.gameObject.GetInstanceID();
+        _currentMover = KinematicSystem.CheckMover(hitObjectId);
     }
 
     public void UpdateCurrentPositionAndRotation()
@@ -246,7 +269,7 @@ public class KinematicBody : MonoBehaviour
         _currentPosition = _transientPosition;
         _currentRotation = _transientRotation;
 
-        _debugInfo.StartPosition = _currentPosition;
+        _stateLog.StartPosition = _currentPosition;
     }
 
     public void ApplyMoverDisplacement()
@@ -254,7 +277,7 @@ public class KinematicBody : MonoBehaviour
         _transientPosition += _moverDisplacement;
         _moverDisplacement = Vector3.zero;
 
-        _debugInfo.PostMoverDisplacement = _transientPosition;
+        _stateLog.PostMoverDisplacement = _transientPosition;
     }
 
     public void CalculateVelocity()
@@ -268,6 +291,12 @@ public class KinematicBody : MonoBehaviour
             _localUpwards = -_inputState.Gravity.normalized;
         }
 
+        // Apply release from ledge
+        if (_inputState.ReleaseFromLedge)
+        {
+            IsHangingOnLedge = false;
+            _inputState.ReleaseFromLedge = false;
+        }
 
         // Impulse calculations
         _isImpulseThisFrame = _inputState.ImpulseThisFrame.sqrMagnitude > 0f;
@@ -290,7 +319,7 @@ public class KinematicBody : MonoBehaviour
         {
             _groundVelocity = Vector3.zero;
 
-            if (!IsOnStableGround)
+            if (!IsOnStableGround && !IsHangingOnLedge)
             {
                 _residualGroundVelocity *= Mathf.Pow(1 - _moverVelocityDecayFactor, Time.fixedDeltaTime);
             }
@@ -300,7 +329,8 @@ public class KinematicBody : MonoBehaviour
             }
         }
 
-        if (!IsOnStableGround || _isImpulseThisFrame) ForceVelocity.ApplyAcceleration();
+        // Don't apply gravity on the frame that you jump, otherwise you'll snap right back down to the ground
+        if ((!IsOnStableGround && !IsHangingOnLedge) || _isImpulseThisFrame) ForceVelocity.ApplyAcceleration();
     }
 
     public void Simulate()
@@ -317,7 +347,8 @@ public class KinematicBody : MonoBehaviour
                 Vector3 appliedAngularVelocity = _currentMover.AngularVelocity.GetComponent(_localUpwards);
                 _lookToVector = Quaternion.Euler(Mathf.Rad2Deg * Time.fixedDeltaTime * appliedAngularVelocity) * _lookToVector;
             }
-            _lookToVector = Vector3.Cross(_localUpwards, Vector3.Cross(_lookToVector, _localUpwards));
+            // If local upwards changes, maintain orthogonality
+            _lookToVector = Vector3.Cross(_localUpwards, Vector3.Cross(_lookToVector, _localUpwards)).normalized;
         }
         _transientRotation = Quaternion.LookRotation(_lookToVector, _localUpwards);
 
@@ -338,12 +369,12 @@ public class KinematicBody : MonoBehaviour
             _appliedSweepVelocity += _residualGroundVelocity;
         }
 
-        _debugInfo.PostGroundSweepPosition = _transientPosition;
+        _stateLog.PostGroundSweepPosition = _transientPosition;
 
         // Sweep across applied velocity
         SweepBodyForCollisions(_appliedSweepVelocity);
 
-        _debugInfo.PostMovementSweepPosition = _transientPosition;
+        _stateLog.PostMovementSweepPosition = _transientPosition;
 
 
     }
@@ -368,7 +399,7 @@ public class KinematicBody : MonoBehaviour
             float beta = 90 - effectiveMaxEdgeSnappingAngle + groundAnglePrev;
             float maxSnappingDistance = Mathf.Sin(Mathf.Deg2Rad * effectiveMaxEdgeSnappingAngle) * velocitySweepDistance / Mathf.Sin(Mathf.Deg2Rad * beta);
 
-            _debugInfo.MaxEdgeSnappingDistance = maxSnappingDistance;
+            _stateLog.MaxEdgeSnappingDistance = maxSnappingDistance;
 
             Vector3 capsuleTopHemi = (_collider.height - _collider.radius) * _localUpwards;
             Vector3 capsuleBottomHemi = (_collider.radius * _localUpwards);
@@ -384,7 +415,6 @@ public class KinematicBody : MonoBehaviour
             );
 
             RaycastHit closestHit = _sweepHits[0];
-
 
             for (int i = 1; i < nbHits; i++)
             {
@@ -406,7 +436,115 @@ public class KinematicBody : MonoBehaviour
             }
         }
 
-        _debugInfo.PostEdgeSnapPosition = _transientPosition;
+        _stateLog.PostEdgeSnapPosition = _transientPosition;
+    }
+
+    // Casts a ray to detect any nearby ledge
+    // If detected, capsule casts to the ledge to snap the capsule to it
+    public void CheckForLedgeGrabbing()
+    {
+        _stateLog.PostLedgeGrabPosition = _transientPosition;
+
+        // Only ledge grab if body is falling (using epsilon value for floating point error)
+        // or if already ledge grabbing
+        bool canLedgeGrab = !IsOnStableGround && Vector3.Dot(_appliedSweepVelocity, _localUpwards) <= 0.001f;
+        if (!canLedgeGrab && !_wasHangingInPreviousFrame) return;
+
+
+        // Cast first ray to detect if ledge is present
+        Vector3 raycastOrigin = _transientPosition + (_collider.radius + _ledgeGrabbingReach) * _lookToVector + _collider.height * _localUpwards;
+        bool didCastHit = Physics.Raycast(
+            raycastOrigin,
+            -_localUpwards,
+            out RaycastHit ledgeTopHit,
+            0.5f * _collider.height,
+            _sceneLayer
+            );
+
+        if (_showPostLedgeGrabPosition)
+        {
+            Debug.DrawRay(raycastOrigin, 0.5f * _collider.height * -_localUpwards, Color.blue);
+        }
+
+        // Terminate ledge grabbing if no ledge is present
+        if (!didCastHit) return;
+        else
+        {
+            IsHangingOnLedge = true;
+            GroundNormal = ledgeTopHit.normal;
+            RegisterMover(ledgeTopHit.collider);
+        }
+
+        // Is the ledge flat enough to be considered a valid ledge
+        float groundAngle = Vector3.Angle(_localUpwards, ledgeTopHit.normal);
+        if (groundAngle > _ledgeTopAngleTolerance) return;
+
+        // No need to snap if we're already hanging
+        // EXCEPT if we're on a rotating mover, in which case we have to make sure we update the snapping and normal
+        bool onRotatingMover = _currentMover != null && _currentMover.AngularVelocity != Vector3.zero;
+        if (_wasHangingInPreviousFrame && !onRotatingMover) return;
+
+
+
+        // Capsule cast to get more information about the ledge
+
+        float projectedDistanceToHitPoint = (ledgeTopHit.point - _transientPosition).GetComponent(_lookToVector).magnitude;
+
+        Vector3 capsuleTopHemi = (_collider.height - _collider.radius) * _localUpwards;
+        Vector3 capsuleBottomHemi = (_collider.radius * _localUpwards);
+
+        int nbHits = Physics.CapsuleCastNonAlloc(
+            point1: _transientPosition + capsuleTopHemi,
+            point2: _transientPosition + capsuleBottomHemi,
+            radius: _collider.radius,
+            direction: _lookToVector,
+            maxDistance: projectedDistanceToHitPoint,
+            results: _sweepHits,
+            layerMask: _sceneLayer
+        );
+
+        // Something has gone wrong if the cast fails
+        if (nbHits == 0)
+        {
+            Debug.LogError("Ledge sweep cast failed");
+            return;
+        }
+
+        RaycastHit closestHit = _sweepHits[0];
+
+        for (int i = 1; i < nbHits; i++)
+        {
+            if (_sweepHits[i].distance < closestHit.distance)
+            {
+                closestHit = _sweepHits[i];
+            }
+        }
+
+        // Make sure the side of ledge is vertical enough for it to be considered a valid ledge
+        float ledgeSideAngle = Vector3.Angle(closestHit.normal, ledgeTopHit.normal);
+        if (ledgeSideAngle > _ledgeEdgeAngleMaximum) return;
+
+        // Horizontal snapping
+        Vector3 horizontalSnapping = closestHit.distance * _lookToVector + _colliderMargin * closestHit.normal;
+
+        // Vertical snapping
+        Vector3 hangLevelPointAlongAxis = _transientPosition + _ledgeGrabHangLevel * _collider.height * _localUpwards;
+        Vector3 verticalSnapping = (ledgeTopHit.point - hangLevelPointAlongAxis).GetComponent(_localUpwards);
+
+
+        // Snap to ledge
+        _transientPosition += horizontalSnapping + verticalSnapping;
+        LedgeNormal = closestHit.normal;
+        ForceVelocity.SetVelocity(Vector3.zero);
+
+        // Register mover and anticipate ledge normal rotation for next frame
+        RegisterMover(closestHit.collider);
+        if (_currentMover != null && _currentMover.AngularVelocity != Vector3.zero)
+        {
+            LedgeNormal = Quaternion.Euler(Mathf.Rad2Deg * Time.fixedDeltaTime * _currentMover.AngularVelocity) * LedgeNormal;
+        }
+
+        _stateLog.PostLedgeGrabPosition = _transientPosition;
     }
 
     // Sweeps body in direction of velocity and detects & corrects collisions
@@ -720,7 +858,7 @@ public class KinematicBody : MonoBehaviour
             }
         }
 
-        _debugInfo.PostDepenetrationPosition = _transientPosition;
+        _stateLog.PostDepenetrationPosition = _transientPosition;
     }
 
     // Resets variables involved in collision checks
@@ -730,6 +868,8 @@ public class KinematicBody : MonoBehaviour
         GroundNormal = _localUpwards;
         _wasOnStableGroundInPreviousFrame = IsOnStableGround;
         IsOnStableGround = false;
+        _wasHangingInPreviousFrame = IsHangingOnLedge;
+        IsHangingOnLedge = false;
         _currentMover = null;
         _fractionOfFrameGroundVelocityApplied = 1.0f;
     }
@@ -752,8 +892,10 @@ public class KinematicBody : MonoBehaviour
         if (_showDebugText)
         {
             _debugText += $"\nOnStableGround: {IsOnStableGround}";
+            _debugText += $"\nIsHangingOnLedge: {IsHangingOnLedge}";
             _debugText += $"\nWasOnStableGround: {_wasOnStableGroundInPreviousFrame}";
             _debugText += $"\nGround normal: {GroundNormal}";
+            _debugText += $"\nLedge normal: {LedgeNormal}";
             _debugText += $"\nForce velocity: {ForceVelocity.AppliedVelocity}\nMovement velocity: {_movementVelocity}\nGround velocity: {_groundVelocity}\nResidual ground velocity: {_residualGroundVelocity}\nPre-sweep velocity: {_appliedSweepVelocity}";
             _debugText += $"\nCurrent mover: {_currentMover?.name ?? "None"}";
             _debugText += $"\nLocalUpwards: {_localUpwards}";
@@ -818,18 +960,20 @@ public class KinematicBody : MonoBehaviour
             _showPostGroundSweepPosition,
             _showPostMovementSweepPosition,
             _showPostDepenetrationPosition,
-            _showPostEdgeSnapPosition
+            _showPostEdgeSnapPosition,
+            _showPostLedgeGrabPosition
         };
 
         Vector3 topOffset = (_collider.height - 2 * _collider.radius) * _localUpwards;
         List<Vector3> debugPositions = new List<Vector3>
         {
-            _debugInfo.StartPosition,
-            _debugInfo.PostMoverDisplacement,
-            _debugInfo.PostGroundSweepPosition,
-            _debugInfo.PostMovementSweepPosition,
-            _debugInfo.PostDepenetrationPosition,
-            _debugInfo.PostEdgeSnapPosition
+            _stateLog.StartPosition,
+            _stateLog.PostMoverDisplacement,
+            _stateLog.PostGroundSweepPosition,
+            _stateLog.PostMovementSweepPosition,
+            _stateLog.PostDepenetrationPosition,
+            _stateLog.PostEdgeSnapPosition,
+            _stateLog.PostLedgeGrabPosition
         };
 
         for (int i = 0; i < debugPositions.Count; i++)
@@ -864,7 +1008,13 @@ public class KinematicBody : MonoBehaviour
         if (_showPostEdgeSnapPosition)
         {
             Gizmos.color = Color.blue;
-            GizmoExtensions.DrawSphere(_debugInfo.PostDepenetrationPosition + _debugInfo.MaxEdgeSnappingDistance * -_localUpwards + _collider.radius * _localUpwards, _collider.radius + _surfaceDetectionRange);
+            GizmoExtensions.DrawSphere(_stateLog.PostDepenetrationPosition + _stateLog.MaxEdgeSnappingDistance * -_localUpwards + _collider.radius * _localUpwards, _collider.radius + _surfaceDetectionRange);
+        }
+
+        if (_showPostLedgeGrabPosition)
+        {
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawRay(_transientPosition, 2f * LedgeNormal);
         }
 
     }
