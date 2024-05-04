@@ -96,9 +96,6 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
 
         _playerInput.CharacterControls.Pause.started += OnPause;
         _playerInput.CharacterControls.Pause.canceled += OnPause;
-
-        _playerInput.CharacterControls.Accelerate.started += OnAccelerate;
-        _playerInput.CharacterControls.Accelerate.canceled += OnAccelerate;
     }
 
     public void UpdateInputState(ref InputState inputState)
@@ -200,14 +197,6 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     private void OnRun(InputAction.CallbackContext context)
     {
         _isRunningPressed = context.ReadValueAsButton();
-    }
-
-    private void OnAccelerate(InputAction.CallbackContext context)
-    {
-
-        _isAccelerating = context.ReadValueAsButton();
-        if (context.started) _body.ForceVelocity.Acceleration += _thrustAcceleration * transform.forward;
-        if (context.canceled) _body.ForceVelocity.Acceleration -= _thrustAcceleration * transform.forward;
     }
 
     private void OnMovementInputController(InputAction.CallbackContext context)

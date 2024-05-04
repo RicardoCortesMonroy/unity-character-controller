@@ -6,6 +6,7 @@ using TMPro;
 using UnityEngine.InputSystem.HID;
 using UnityEngine.UIElements;
 using System.Linq;
+using UnityEditor;
 
 public struct InputState
 {
@@ -46,7 +47,18 @@ public class KinematicBody : MonoBehaviour
 
     // PRIVATE MEMBERS:
 
+    [Tooltip("Mass to interact with rigidbodies")]
     [SerializeField] private float _mass;
+
+    [Range(0f, 1f)]
+    [Tooltip("Factor by which residual velocity will decay once the body leaves its current mover (0 means no decay, 1 is immediate)")]
+    [SerializeField] private float _moverVelocityDecayFactor = 0f;
+
+    [Range(0f, 1f)]
+    [Tooltip("Fraction of tangential velocity to ceiling applied on collision")]
+    [SerializeField] private float _ceilingCollisionDampening = 0.2f;
+
+    [SerializeField] private TextMeshProUGUI _debugTextBox;
 
     private Transform _transform;
     private CapsuleCollider _collider;
@@ -56,7 +68,6 @@ public class KinematicBody : MonoBehaviour
     private KinematicMover _currentMover;
     private Vector3 _moverDisplacement;
 
-    [SerializeField] private TextMeshProUGUI _debug;
     private string _debugText;
 
     InputState _inputState;
@@ -71,36 +82,35 @@ public class KinematicBody : MonoBehaviour
 
     // Current and transient (simulated) transform info
     private Vector3 _currentPosition;
-    [SerializeField] private Vector3 _transientPosition;
+    private Vector3 _transientPosition;
     private Quaternion _currentRotation;
     private Quaternion _transientRotation;
     private Vector3 _lookToVector = Vector3.forward;
     private Vector3 _localUpwards = Vector3.up;
 
-    [Range(0f, 1f)]
-    [SerializeField] private float _moverVelocityDecayFactor = 0f; // factor that determines how residual ground velocity after leaving a mover will decay (0 means no decay, 1 is immediate)
 
     // Grounded-related variables
     private Vector3 _groundNormalPrev;
 
     private bool _wasOnStableGroundInPreviousFrame;
 
-    // Edge snapping
-
     // Sweep variables
+    readonly private int _maxSweeps = 8;
     private RaycastHit[] _sweepHits = new RaycastHit[8];
-    private int _maxSweeps = 8;
     private float _colliderMargin = 0.01f; // distance repelled from a collision point within the next frame. Ensures there's always a small gap between colliders
 
     // Surface detection variables
-    private Collider[] _collidersTouching = new Collider[8];
-    private Vector3[] _collidersTouchingNormals = new Vector3[8];
-    private int _nbCollidersTouching;
-    private float _surfaceDetectionRange = 0.02f; // maximum distance away from collider in which the body is considered "touching" a surface
     readonly private int _maxPenetrationChecks = 10;
+    private Collider[] _collidersTouching = new Collider[8];
+    private float _surfaceDetectionRange = 0.02f; // maximum distance away from collider in which the body is considered "touching" a surface
 
-    // Collision interactions
-    private float _ceilingCollisionDampening = 0.2f; //fraction of tangential velocity to ceiling applied on collision
+
+    // Velocity tracking
+    private Vector3 _appliedSweepVelocity;
+    private Vector3 _postSweepVelocity;
+
+    private LayerMask _sceneLayer;
+
 
     // Debug variables
     [Space(20)]
@@ -109,7 +119,7 @@ public class KinematicBody : MonoBehaviour
     [SerializeField] private bool _showGroundNormal;
     [SerializeField] private bool _showVelocity;
     [SerializeField] private bool _showMovingPlatformContactPoints;
-    [SerializeField] private bool _showSweep;
+    [SerializeField] private bool _showTotalDeltaPos;
     [SerializeField] private bool _showSweepSteps;
 
     [SerializeField] private bool _showStartPosition;
@@ -125,20 +135,10 @@ public class KinematicBody : MonoBehaviour
     [SerializeField] private bool _showSurfaceDetectionRange;
     [SerializeField] private bool _showTopSphere;
 
-    // Velocity tracking
-    private Vector3 _appliedSweepVelocity;
-    private Vector3 _postSweepVelocity;
-    private Vector3 _preSweepPosition;
-    private Vector3 _postSweepPosition;
-
-    private LayerMask _sceneLayer;
-
 
     private void OnValidate()
     {
-        _transform = transform;
-        _transform.position = _transientPosition;
-        _transform.rotation = _transientRotation;
+        
         _collider = GetComponent<CapsuleCollider>();
         _controller = GetComponent<ICharacterController>();
         if (_controller == null)
@@ -162,19 +162,36 @@ public class KinematicBody : MonoBehaviour
 
     void Awake()
     {
-        _currentPosition = _transform.position;
-        _transientPosition = _transform.position;
-        _currentRotation = _transform.rotation;
-        _transientRotation = _transform.rotation;
+        _transform = transform;
+
+        EditorApplication.pauseStateChanged += OnEditorPause;
+        UpdateTransform();
 
         _sceneLayer = LayerMask.GetMask("Scene");
 
         GroundNormal = _localUpwards;
     }
 
-    private void ConfigureCapsule()
+    private void OnEditorPause(PauseState pauseState)
     {
+        if (Application.isPlaying && pauseState == PauseState.Unpaused)
+        {
+            UpdateTransform();
+        }
+    }
+
+    private void UpdateTransform()
+    {
+        _currentPosition = _transform.position;
+        _transientPosition = _transform.position;
+
+        _currentRotation = _transform.rotation;
+        _transientRotation = _transform.rotation;
+    }
+
+    private void ConfigureCapsule()
 #if UNITY_EDITOR
+    {
         _collider.hideFlags = HideFlags.NotEditable;
         if (!Mathf.Approximately(transform.lossyScale.x, 1f) || !Mathf.Approximately(transform.lossyScale.y, 1f) || !Mathf.Approximately(transform.lossyScale.z, 1f))
         {
@@ -306,7 +323,6 @@ public class KinematicBody : MonoBehaviour
 
 
         // Velocity
-        _preSweepPosition = _transientPosition;
         _appliedSweepVelocity = ForceVelocity.AppliedVelocity + _movementVelocity;
 
         // If on a mover, sweep across the ground velocity first while ignoring the mover itself
@@ -473,7 +489,6 @@ public class KinematicBody : MonoBehaviour
                     Vector3 delta_p_b = m_b * (v_b - v_bi);
                     Vector3 F_b = delta_p_b / 0.1f;
 
-                    Debug.Log($"Colliding with RB, applying force {F_b} at {closestHit.point}");
                     rb.AddForceAtPosition(F_b, closestHit.point, ForceMode.Force);
                 }
 
@@ -534,7 +549,6 @@ public class KinematicBody : MonoBehaviour
             // Break if no more collisions or if termination is called
             if (nbValidHits == 0 || terminateSweep) break;
         }
-        _postSweepPosition = _transientPosition;
     }
 
     // Checks for all colliders within SurfaceDetectionRange and caches their normals
@@ -556,7 +570,7 @@ public class KinematicBody : MonoBehaviour
             Vector3 capsuleBottomHemi = _collider.radius * _localUpwards;
             //Debug.DrawLine(_transientPosition + capsuleTopHemi, _transientPosition + capsuleBottomHemi, Color.red);
 
-            _nbCollidersTouching = Physics.OverlapCapsuleNonAlloc(
+            int nbCollidersTouching = Physics.OverlapCapsuleNonAlloc(
                     _transientPosition + capsuleTopHemi,
                     _transientPosition + capsuleBottomHemi,
                     _collider.radius + _surfaceDetectionRange,
@@ -569,7 +583,7 @@ public class KinematicBody : MonoBehaviour
 
 
             // Compute penetration and register contact for each collider
-            for (int j = 0; j < _nbCollidersTouching; j++)
+            for (int j = 0; j < nbCollidersTouching; j++)
             {
                 Collider surfaceCollider = _collidersTouching[j];
 
@@ -633,7 +647,7 @@ public class KinematicBody : MonoBehaviour
                     // we want to be squeezed through the mover, thereby prioritizing the collision correction from the static collider
                     if (onStableGroundAtBeginningOfFrame && !onMoverAndCollidingWithStatic)
                     {
-                        // Steep inclines
+                        // Treat steep inclines like perpendicular walls to prevent hopping up them
                         if (surfaceIsSteep)
                         {
                             // o = |o_0| (n1 x n2) x n1 / sin(theta)^2
@@ -694,7 +708,6 @@ public class KinematicBody : MonoBehaviour
                         }
 
                         // Register contact
-                        _collidersTouchingNormals[j] = hit.normal;
                         RegisterCollision(hit.collider, hit.normal);
 
                         //Debug.Log($"Registering collision with {hit.collider.name}, penetration check {i}, collider {j}, overlapDistance {overlapDistance}, overlapCorrection {overlapCorrection}");
@@ -751,7 +764,7 @@ public class KinematicBody : MonoBehaviour
             //    _debugText += $"\n  {_collidersTouchingNormals[i]}";
             //}
 
-            _debug.text = _debugText;
+            _debugTextBox.text = _debugText;
             _debugText = "";
         }
     }
@@ -789,7 +802,7 @@ public class KinematicBody : MonoBehaviour
             Gizmos.DrawRay(_transientPosition, _postSweepVelocity);
         }
 
-        if (_showSweep)
+        if (_showTotalDeltaPos)
         {
             Gizmos.color = new Color(1f, 0.7f, 0f, 1f);
             GizmoExtensions.DrawSphere(_currentPosition + _collider.radius * _localUpwards, _collider.radius);
