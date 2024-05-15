@@ -125,6 +125,15 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""L"",
+                    ""type"": ""Button"",
+                    ""id"": ""14be7d33-5c76-4367-ae98-6425cade770c"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -347,6 +356,17 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
                     ""action"": ""Accelerate"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""a0d65d31-8456-4d51-9ebd-562506543426"",
+                    ""path"": ""<Keyboard>/l"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""L"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -366,6 +386,7 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
         m_CharacterControls_LeftClick = m_CharacterControls.FindAction("LeftClick", throwIfNotFound: true);
         m_CharacterControls_ZoomScroll = m_CharacterControls.FindAction("ZoomScroll", throwIfNotFound: true);
         m_CharacterControls_Accelerate = m_CharacterControls.FindAction("Accelerate", throwIfNotFound: true);
+        m_CharacterControls_L = m_CharacterControls.FindAction("L", throwIfNotFound: true);
     }
 
     public void Dispose()
@@ -438,6 +459,7 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
     private readonly InputAction m_CharacterControls_LeftClick;
     private readonly InputAction m_CharacterControls_ZoomScroll;
     private readonly InputAction m_CharacterControls_Accelerate;
+    private readonly InputAction m_CharacterControls_L;
     public struct CharacterControlsActions
     {
         private @PlayerInput m_Wrapper;
@@ -453,6 +475,7 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
         public InputAction @LeftClick => m_Wrapper.m_CharacterControls_LeftClick;
         public InputAction @ZoomScroll => m_Wrapper.m_CharacterControls_ZoomScroll;
         public InputAction @Accelerate => m_Wrapper.m_CharacterControls_Accelerate;
+        public InputAction @L => m_Wrapper.m_CharacterControls_L;
         public InputActionMap Get() { return m_Wrapper.m_CharacterControls; }
         public void Enable() { Get().Enable(); }
         public void Disable() { Get().Disable(); }
@@ -495,6 +518,9 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
             @Accelerate.started += instance.OnAccelerate;
             @Accelerate.performed += instance.OnAccelerate;
             @Accelerate.canceled += instance.OnAccelerate;
+            @L.started += instance.OnL;
+            @L.performed += instance.OnL;
+            @L.canceled += instance.OnL;
         }
 
         private void UnregisterCallbacks(ICharacterControlsActions instance)
@@ -532,6 +558,9 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
             @Accelerate.started -= instance.OnAccelerate;
             @Accelerate.performed -= instance.OnAccelerate;
             @Accelerate.canceled -= instance.OnAccelerate;
+            @L.started -= instance.OnL;
+            @L.performed -= instance.OnL;
+            @L.canceled -= instance.OnL;
         }
 
         public void RemoveCallbacks(ICharacterControlsActions instance)
@@ -562,5 +591,6 @@ public partial class @PlayerInput: IInputActionCollection2, IDisposable
         void OnLeftClick(InputAction.CallbackContext context);
         void OnZoomScroll(InputAction.CallbackContext context);
         void OnAccelerate(InputAction.CallbackContext context);
+        void OnL(InputAction.CallbackContext context);
     }
 }

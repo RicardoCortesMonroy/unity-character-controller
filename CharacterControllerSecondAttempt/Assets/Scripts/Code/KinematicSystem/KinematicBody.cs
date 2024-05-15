@@ -1,11 +1,7 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
-using UnityEngine.InputSystem.HID;
-using UnityEngine.UIElements;
-using System.Linq;
 using UnityEditor;
 
 public struct InputState
@@ -47,7 +43,7 @@ public class KinematicBody : MonoBehaviour
     public float MaxEdgeSnappingAngle { get; set; }
     public bool IsHangingOnLedge { get; private set; }
     public Vector3 LedgeNormal { get; private set; }
-
+    public Vector3 MovementVelocity { get { return _movementVelocity; } }
 
     // PRIVATE MEMBERS:
 
@@ -174,6 +170,7 @@ public class KinematicBody : MonoBehaviour
 
     void Awake()
     {
+
         _transform = transform;
 
         EditorApplication.pauseStateChanged += OnEditorPause;
@@ -208,9 +205,11 @@ public class KinematicBody : MonoBehaviour
     }
 
     private void ConfigureCapsule()
-#if UNITY_EDITOR
     {
-        _collider.hideFlags = HideFlags.NotEditable;
+        _collider.center = new Vector3(0, 0.5f * _collider.height, 0);  
+
+#if UNITY_EDITOR
+        _collider.hideFlags = HideFlags.None;
         if (!Mathf.Approximately(transform.lossyScale.x, 1f) || !Mathf.Approximately(transform.lossyScale.y, 1f) || !Mathf.Approximately(transform.lossyScale.z, 1f))
         {
             Debug.LogError("Character's lossy scale is not (1,1,1). This is not allowed. Make sure the character's transform and all of its parents have a (1,1,1) scale.", this.gameObject);

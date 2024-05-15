@@ -60,7 +60,7 @@ public class KinematicSystem : MonoBehaviour
     {
         _simulationStartTime = Time.time;
 
-        Debug.Log($"----------------------Physics frame: {_fixedFrame}----------------------");
+        //Debug.Log($"----------------------Physics frame: {_fixedFrame}----------------------");
 
         if (!_alternateSteps || _fixedFrame % 2 == 0 )
         {

@@ -6,6 +6,10 @@ using UnityEngine.InputSystem;
 
 public class PlayerInputHandler : MonoBehaviour, ICharacterController
 {
+    public KinematicBody KinematicBody { get { return _body; } }
+    public float WalkingSpeed { get { return _walkingSpeed; } }
+    public float RunningSpeed { get { return _runningSpeed; } }
+
     private Camera _camera;
     private KinematicBody _body;
     private PlayerInput _playerInput;
@@ -19,6 +23,9 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     [Header("Movement variables")]
     [SerializeField] private float _walkingSpeed = 4;
     [SerializeField] private float _runningSpeed = 8;
+    [Tooltip("Parameter used in lerping between different speeds. 1 is instant, 0 is infinite")]
+    [Range(0.01f, 1f)]
+    [SerializeField] private float _speedSmoothing = 0.1f;
 
     [Space(10)]
     [Header("Jump variables")]
@@ -50,6 +57,10 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
 
     // Vector input
     private Vector2 _movementInput;
+
+    // Movement tracking
+    private Vector3 _appliedMovementVector = new();
+    private float _appliedSpeed = 0f;
 
     // Boolean input
     private bool _isJumpPressed;
@@ -102,7 +113,10 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     public void UpdateInputState(ref InputState inputState)
     {
         Vector2 appliedInput = _forceInput ? _forcedMovementInput : _movementInput;
-        float appliedSpeed = _isRunningPressed ? _runningSpeed : _walkingSpeed;
+        float targetSpeed = _isMovementPressed ? _isRunningPressed ? _runningSpeed : _walkingSpeed : 0f;
+        if (_forceInput) targetSpeed = _walkingSpeed;
+
+        _appliedSpeed = Mathf.Lerp(_appliedSpeed, targetSpeed, 1- Mathf.Pow(1 - _speedSmoothing, Time.deltaTime));
         inputState.IsMoving = appliedInput.sqrMagnitude > Mathf.Epsilon;
 
         if (_gravityFocus != null)
@@ -122,46 +136,48 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
             return basis;
         }
 
-        Debug.Log($"Setting bases with GroundNormal: {_body.GroundNormal}");
         //_forwardBasis = SetBasisFromCamera(_forceInput ? Vector3.forward : _camera.transform.forward);
         //_rightBasis = SetBasisFromCamera(_forceInput ? Vector3.right : _camera.transform.right);
         _forwardBasis = SetBasisFromCamera(_camera.transform.forward);
         _rightBasis = SetBasisFromCamera(_camera.transform.right);
 
-        Vector3 appliedMovementVector = new();
-
-        // Applying input. Note that appliedMovementVector is not necessarily normalized (can be <1 for joysticks)
-        appliedMovementVector.x = appliedInput.x * _rightBasis.x + appliedInput.y * _forwardBasis.x;
-        appliedMovementVector.y = appliedInput.x * _rightBasis.y + appliedInput.y * _forwardBasis.y;
-        appliedMovementVector.z = appliedInput.x * _rightBasis.z + appliedInput.y * _forwardBasis.z;
+        // Only change movement vector when moving
+        // Ensures that we have decceleration when stopping
+        if (targetSpeed > 0f)
+        {
+            // Applying input. Note that appliedMovementVector is not necessarily normalized (can be <1 for joysticks)
+            _appliedMovementVector.x = appliedInput.x * _rightBasis.x + appliedInput.y * _forwardBasis.x;
+            _appliedMovementVector.y = appliedInput.x * _rightBasis.y + appliedInput.y * _forwardBasis.y;
+            _appliedMovementVector.z = appliedInput.x * _rightBasis.z + appliedInput.y * _forwardBasis.z;
+        }
                 
         // Different movement modes
         if (_body.IsOnStableGround)
         {
-            inputState.MovementVelocity = appliedMovementVector * appliedSpeed;
+            inputState.MovementVelocity = _appliedMovementVector * _appliedSpeed;
         }
         else if (_body.IsHangingOnLedge)
         {
             // Keep capsule against ledge if moving towards it
             // Otherwise release it from the ledge
-            float shimmyAngle = Vector3.Angle(appliedMovementVector, _body.LedgeNormal);
+            float shimmyAngle = Vector3.Angle(_appliedMovementVector, _body.LedgeNormal);
             if (inputState.IsMoving && shimmyAngle < 90 - _shimmyAngleTolerance)
             {
                 inputState.ReleaseFromLedge = true;
             }
             else
             {
-                appliedMovementVector = appliedMovementVector.With(_body.LedgeNormal, 0f);
+                _appliedMovementVector = _appliedMovementVector.With(_body.LedgeNormal, 0f);
             }
             
-            inputState.MovementVelocity = appliedMovementVector * appliedSpeed;
+            inputState.MovementVelocity = _appliedMovementVector * _appliedSpeed;
         }
         else
         {
             // neutralVelocity is the movement velocity required to align the total applied velocity (including force) with the ground normal
             // it acts as an 'origin' point for the movement velocity
             Vector3 neutralVelocity = -_body.ForceVelocity.AppliedVelocity.With(_body.GroundNormal, 0f);
-            Vector3 targetAerialVelocity = (neutralVelocity + _maxAerialMovementSpeed * appliedMovementVector).CapMagnitude(_maxAerialMovementSpeed);
+            Vector3 targetAerialVelocity = (neutralVelocity + _maxAerialMovementSpeed * _appliedMovementVector).CapMagnitude(_maxAerialMovementSpeed);
             Vector3 targetDelta = targetAerialVelocity - inputState.MovementVelocity;
             float interpolationFactor = Mathf.Clamp01(Time.fixedDeltaTime * _aerialAcceleration / targetDelta.magnitude);
 
@@ -175,13 +191,11 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
             _appliedLookToVector = _targetLookToVector;
 
             Debug.DrawRay(transform.position, 2f * _body.LedgeNormal, Color.magenta);
-            Debug.Log($"Constraining target look vector to ledge normal");
         }
         // Only update active movement direction when movement is pressed.
         // Keeps track of how the player was last moving in previous input
         else if (inputState.IsMoving)
         {
-            Debug.Log($"Aligning target look vector to movement velocity");
             _targetLookToVector = inputState.MovementVelocity.normalized;
         }
 
