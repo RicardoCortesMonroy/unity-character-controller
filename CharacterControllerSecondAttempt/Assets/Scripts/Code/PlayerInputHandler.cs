@@ -3,9 +3,19 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
+
 
 public class PlayerInputHandler : MonoBehaviour, ICharacterController
 {
+    enum MovementMode
+    {
+        GROUNDED,
+        HANGING,
+        AIRBORNE
+    }
+
+
     public KinematicBody KinematicBody { get { return _body; } }
     public float WalkingSpeed { get { return _walkingSpeed; } }
     public float RunningSpeed { get { return _runningSpeed; } }
@@ -46,6 +56,9 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     private float _gravityMagnitude;
     private float _initialJumpVelocity;
 
+    // Movement mode
+    MovementMode _movementMode;
+
     // Movement bases
     private Vector3 _forwardBasis;
     private Vector3 _rightBasis;
@@ -59,9 +72,11 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     private Vector2 _movementInput;
 
     // Movement tracking
-    private Vector3 worldInputVector = new();
     private Vector3 _worldInputVectorPersist = new();
     private float _appliedSpeed = 0f;
+
+    // Boolean flags
+    private bool _releaseFromLedge = false;
 
     // Boolean input
     private bool _isJumpPressed;
@@ -113,21 +128,42 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
 
     public void UpdateInputState(ref InputState inputState)
     {
-        Vector2 appliedInput = _forceInput ? _forcedMovementInput : _movementInput;
-        float targetSpeed = _isMovementPressed ? _isRunningPressed ? _runningSpeed : _walkingSpeed : 0f;
-        if (_forceInput) targetSpeed = _walkingSpeed;
-
-        _appliedSpeed = Mathf.Lerp(_appliedSpeed, targetSpeed, 1- Mathf.Pow(1 - _speedSmoothing, Time.deltaTime));
+        // Determine the applied input base
+        Vector3 appliedInput = _forceInput ? _forcedMovementInput : _movementInput;
         inputState.IsMoving = appliedInput.sqrMagnitude > Mathf.Epsilon;
 
-        if (_gravityFocus != null)
-        {
-            _gravityDirection = (_gravityFocus.position - _body.CentreOfMass).normalized;
-        }
 
-        Vector3 appliedGravity = _gravityMagnitude * _gravityDirection;
+        // Determine input vector in world coordinates based on camera orientation
+        Vector3 worldInputVector = GetWorldFromInput(appliedInput, _camera);
 
-        // Takes in a transform direction from the camera and converts into a basis vector for horizontal movement
+        // Keeps track of the previous input vector if player is stationary
+        if (inputState.IsMoving) _worldInputVectorPersist = worldInputVector;
+
+
+        // Determine movement mode
+        if (_body.IsOnStableGround) _movementMode = MovementMode.GROUNDED;
+        else if (_body.IsHangingOnLedge) _movementMode = MovementMode.HANGING;
+        else _movementMode = MovementMode.AIRBORNE;
+
+        // Handle Movement velocity
+        inputState.MovementVelocity = GetMovementFromMode(_movementMode, worldInputVector, inputState);
+        inputState.ReleaseFromLedge = _releaseFromLedge;
+
+        // Handle Rotation
+        inputState.LookToVector = GetLookToVector(inputState);
+
+
+        // Handle Gravity
+        inputState.Gravity = GetGravityVector();
+
+
+        // Handle Jump
+        inputState.ImpulseVelocity = GetImpulseVector();
+    }
+
+
+    private Vector3 GetWorldFromInput(Vector3 input, Camera camera)
+    {
         Vector3 SetBasisFromCamera(Vector3 cameraBasis)
         {
             // 1. Flatten to XZ plane
@@ -137,60 +173,76 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
             return basis;
         }
 
-        //_forwardBasis = SetBasisFromCamera(_forceInput ? Vector3.forward : _camera.transform.forward);
-        //_rightBasis = SetBasisFromCamera(_forceInput ? Vector3.right : _camera.transform.right);
-        _forwardBasis = SetBasisFromCamera(_camera.transform.forward);
-        _rightBasis = SetBasisFromCamera(_camera.transform.right);
+        _forwardBasis = SetBasisFromCamera(camera.transform.forward);
+        _rightBasis = SetBasisFromCamera(camera.transform.right);
 
-        // Applying input in world coordinates.
-        // Note that worldInputVector is not necessarily normalized but capped at 1 (e.g. will be <=1 for joysticks)
         Vector3 worldInputVector = new()
         {
-            x = appliedInput.x * _rightBasis.x + appliedInput.y * _forwardBasis.x,
-            y = appliedInput.x * _rightBasis.y + appliedInput.y * _forwardBasis.y,
-            z = appliedInput.x * _rightBasis.z + appliedInput.y * _forwardBasis.z
+            x = input.x * _rightBasis.x + input.y * _forwardBasis.x,
+            y = input.x * _rightBasis.y + input.y * _forwardBasis.y,
+            z = input.x * _rightBasis.z + input.y * _forwardBasis.z
         };
 
-        // Keeps track of the previous input vector if player is stationary
-        if (targetSpeed > 0f)
-        {
-            _worldInputVectorPersist = worldInputVector;
-        }
+        return worldInputVector;
+    }
 
-                
-        // Different movement modes
-        if (_body.IsOnStableGround)
+    private Vector3 GetMovementFromMode(MovementMode mode, Vector3 inputVector, InputState inputState)
+    {
+        Vector3 movementVelocity;
+
+        switch (mode)
         {
-            inputState.MovementVelocity = _worldInputVectorPersist * _appliedSpeed;
-        }
-        else if (_body.IsHangingOnLedge)
-        {
-            // Keep capsule against ledge if moving towards it
-            // Otherwise release it from the ledge
-            float shimmyAngle = Vector3.Angle(worldInputVector, _body.LedgeNormal);
-            if (inputState.IsMoving && shimmyAngle < 90 - _shimmyAngleTolerance)
+            case MovementMode.GROUNDED:
             {
-                inputState.ReleaseFromLedge = true;
+                float targetSpeed = _isMovementPressed ? _isRunningPressed ? _runningSpeed : _walkingSpeed : 0f;
+                if (_forceInput) targetSpeed = _walkingSpeed;
+                _appliedSpeed = Mathf.Lerp(_appliedSpeed, targetSpeed, 1 - Mathf.Pow(1 - _speedSmoothing, Time.deltaTime));
+                movementVelocity = _worldInputVectorPersist * _appliedSpeed;
+                break;
             }
-            else
+
+            case MovementMode.HANGING:
             {
-                worldInputVector = worldInputVector.With(_body.LedgeNormal, 0f);
+                // Keep capsule against ledge if moving towards it
+                // Otherwise release it from the ledge
+                float shimmyAngle = Vector3.Angle(inputVector, _body.LedgeNormal);
+                if (inputState.IsMoving && shimmyAngle < 90 - _shimmyAngleTolerance)
+                {
+                    _releaseFromLedge = true;
+                }
+                else
+                {
+                    _releaseFromLedge = false;
+                    inputVector = inputVector.With(_body.LedgeNormal, 0f);
+                }
+
+                movementVelocity = inputVector * _appliedSpeed;
+                break;
             }
-            
-            inputState.MovementVelocity = worldInputVector * _appliedSpeed;
-        }
-        else
-        {
-            // neutralVelocity is the movement velocity required to align the total applied velocity (including force) with the local upwards vector
-            // it acts as an 'origin' point for the movement velocity
-            Vector3 neutralVelocity = -_body.ForceVelocity.AppliedVelocity.With(_body.LocalUpwards, 0f);
-            Vector3 targetAerialVelocity = (neutralVelocity + _maxAerialMovementSpeed * worldInputVector).CapMagnitude(_maxAerialMovementSpeed);
-            Vector3 targetDelta = targetAerialVelocity - inputState.MovementVelocity;
-            float t = Mathf.Clamp01(Time.fixedDeltaTime * _aerialAcceleration / targetDelta.magnitude);
 
-            inputState.MovementVelocity = Vector3.Lerp(inputState.MovementVelocity, targetAerialVelocity, t);
+            case MovementMode.AIRBORNE:
+            {
+                // neutralVelocity is the movement velocity required to align the total applied velocity (including force) with the local upwards vector
+                // it acts as an 'origin' point for the movement velocity
+                Vector3 neutralVelocity = -_body.ForceVelocity.AppliedVelocity.With(_body.LocalUpwards, 0f);
+                Vector3 targetAerialVelocity = (neutralVelocity + _maxAerialMovementSpeed * inputVector).CapMagnitude(_maxAerialMovementSpeed);
+                Vector3 targetDelta = targetAerialVelocity - inputState.MovementVelocity;
+                float t = Mathf.Clamp01(Time.fixedDeltaTime * _aerialAcceleration / targetDelta.magnitude);
+
+                movementVelocity = Vector3.Lerp(inputState.MovementVelocity, targetAerialVelocity, t);
+                break;
+            }
+
+            default:
+                movementVelocity = Vector3.zero;
+                break;
         }
 
+        return movementVelocity;
+    }
+
+    private Vector3 GetLookToVector(InputState inputState)
+    {
         // Player should be facing the wall when hanging
         if (_body.IsHangingOnLedge && !inputState.ReleaseFromLedge)
         {
@@ -207,24 +259,47 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
         }
 
         _appliedLookToVector = Vector3.Slerp(_appliedLookToVector, _targetLookToVector, 1 - Mathf.Pow(1 - _slerpFactor, Time.fixedDeltaTime));
-        inputState.LookToVector = _appliedLookToVector;
+        return _appliedLookToVector;
+    }
 
-
-        if (_isJumpQueued)
+    private Vector3 GetGravityVector()
+    {
+        if (_gravityFocus != null)
         {
-            inputState.ImpulseThisFrame = _initialJumpVelocity * -_gravityDirection;
-            _isJumpQueued = false;
+            _gravityDirection = (_gravityFocus.position - _body.CentreOfMass).normalized;
         }
+        Vector3 appliedGravity = _gravityMagnitude * _gravityDirection;
 
         if (!_isJumpPressed || Vector3.Dot(_body.ForceVelocity.AppliedVelocity, _body.LocalUpwards) < 0f)
         {
             appliedGravity *= _gravityReleaseMultiplier;
         }
 
-        inputState.Gravity = appliedGravity;
+        return appliedGravity;
     }
 
-    #region Input system
+    private Vector3 GetImpulseVector()
+    {
+        Vector3 impulseVector;
+
+        if (_isJumpQueued)
+        {
+            _isJumpQueued = false;
+            impulseVector = _initialJumpVelocity * -_gravityDirection;
+        }
+        else
+        {
+            impulseVector = Vector3.zero;
+        }
+
+        return impulseVector;
+    }
+
+
+    // -------------------------------------------------------------------
+    // INPUT SYSTEM
+    // -------------------------------------------------------------------
+
     private void OnEnable()
     {
         _playerInput.Enable();
@@ -265,5 +340,4 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     {
         Debug.Log($"Pause");
     }
-    #endregion
 }

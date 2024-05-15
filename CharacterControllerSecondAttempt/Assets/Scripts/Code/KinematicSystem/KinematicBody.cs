@@ -7,7 +7,7 @@ using UnityEditor;
 public struct InputState
 {
     public Vector3 MovementVelocity;
-    public Vector3 ImpulseThisFrame;
+    public Vector3 ImpulseVelocity;
     public Vector3 LookToVector;
     public Vector3 Gravity;
     public bool IsMoving;
@@ -298,9 +298,9 @@ public class KinematicBody : MonoBehaviour
         }
 
         // Impulse calculations
-        _isImpulseThisFrame = _inputState.ImpulseThisFrame.sqrMagnitude > 0f;
-        ForceVelocity.AddImpulse(_inputState.ImpulseThisFrame);
-        _inputState.ImpulseThisFrame = Vector3.zero;
+        _isImpulseThisFrame = _inputState.ImpulseVelocity.sqrMagnitude > 0f;
+        ForceVelocity.AddImpulse(_inputState.ImpulseVelocity);
+        _inputState.ImpulseVelocity = Vector3.zero;
 
 
         // Ground and residual velocity
