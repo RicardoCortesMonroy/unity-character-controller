@@ -59,7 +59,8 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     private Vector2 _movementInput;
 
     // Movement tracking
-    private Vector3 _appliedMovementVector = new();
+    private Vector3 worldInputVector = new();
+    private Vector3 _worldInputVectorPersist = new();
     private float _appliedSpeed = 0f;
 
     // Boolean input
@@ -141,47 +142,53 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
         _forwardBasis = SetBasisFromCamera(_camera.transform.forward);
         _rightBasis = SetBasisFromCamera(_camera.transform.right);
 
-        // Only change movement vector when moving
-        // Ensures that we have decceleration when stopping
+        // Applying input in world coordinates.
+        // Note that worldInputVector is not necessarily normalized but capped at 1 (e.g. will be <=1 for joysticks)
+        Vector3 worldInputVector = new()
+        {
+            x = appliedInput.x * _rightBasis.x + appliedInput.y * _forwardBasis.x,
+            y = appliedInput.x * _rightBasis.y + appliedInput.y * _forwardBasis.y,
+            z = appliedInput.x * _rightBasis.z + appliedInput.y * _forwardBasis.z
+        };
+
+        // Keeps track of the previous input vector if player is stationary
         if (targetSpeed > 0f)
         {
-            // Applying input. Note that appliedMovementVector is not necessarily normalized (can be <1 for joysticks)
-            _appliedMovementVector.x = appliedInput.x * _rightBasis.x + appliedInput.y * _forwardBasis.x;
-            _appliedMovementVector.y = appliedInput.x * _rightBasis.y + appliedInput.y * _forwardBasis.y;
-            _appliedMovementVector.z = appliedInput.x * _rightBasis.z + appliedInput.y * _forwardBasis.z;
+            _worldInputVectorPersist = worldInputVector;
         }
+
                 
         // Different movement modes
         if (_body.IsOnStableGround)
         {
-            inputState.MovementVelocity = _appliedMovementVector * _appliedSpeed;
+            inputState.MovementVelocity = _worldInputVectorPersist * _appliedSpeed;
         }
         else if (_body.IsHangingOnLedge)
         {
             // Keep capsule against ledge if moving towards it
             // Otherwise release it from the ledge
-            float shimmyAngle = Vector3.Angle(_appliedMovementVector, _body.LedgeNormal);
+            float shimmyAngle = Vector3.Angle(worldInputVector, _body.LedgeNormal);
             if (inputState.IsMoving && shimmyAngle < 90 - _shimmyAngleTolerance)
             {
                 inputState.ReleaseFromLedge = true;
             }
             else
             {
-                _appliedMovementVector = _appliedMovementVector.With(_body.LedgeNormal, 0f);
+                worldInputVector = worldInputVector.With(_body.LedgeNormal, 0f);
             }
             
-            inputState.MovementVelocity = _appliedMovementVector * _appliedSpeed;
+            inputState.MovementVelocity = worldInputVector * _appliedSpeed;
         }
         else
         {
-            // neutralVelocity is the movement velocity required to align the total applied velocity (including force) with the ground normal
+            // neutralVelocity is the movement velocity required to align the total applied velocity (including force) with the local upwards vector
             // it acts as an 'origin' point for the movement velocity
-            Vector3 neutralVelocity = -_body.ForceVelocity.AppliedVelocity.With(_body.GroundNormal, 0f);
-            Vector3 targetAerialVelocity = (neutralVelocity + _maxAerialMovementSpeed * _appliedMovementVector).CapMagnitude(_maxAerialMovementSpeed);
+            Vector3 neutralVelocity = -_body.ForceVelocity.AppliedVelocity.With(_body.LocalUpwards, 0f);
+            Vector3 targetAerialVelocity = (neutralVelocity + _maxAerialMovementSpeed * worldInputVector).CapMagnitude(_maxAerialMovementSpeed);
             Vector3 targetDelta = targetAerialVelocity - inputState.MovementVelocity;
-            float interpolationFactor = Mathf.Clamp01(Time.fixedDeltaTime * _aerialAcceleration / targetDelta.magnitude);
+            float t = Mathf.Clamp01(Time.fixedDeltaTime * _aerialAcceleration / targetDelta.magnitude);
 
-            inputState.MovementVelocity = Vector3.Lerp(inputState.MovementVelocity, targetAerialVelocity, interpolationFactor);
+            inputState.MovementVelocity = Vector3.Lerp(inputState.MovementVelocity, targetAerialVelocity, t);
         }
 
         // Player should be facing the wall when hanging
