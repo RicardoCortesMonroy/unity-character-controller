@@ -17,6 +17,7 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
 
 
     public KinematicBody KinematicBody { get { return _body; } }
+    public Vector3 WorldInput { get { return _worldInputVector; } } // input vector in world coordinates
     public float WalkingSpeed { get { return _walkingSpeed; } }
     public float RunningSpeed { get { return _runningSpeed; } }
 
@@ -33,6 +34,7 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     [Header("Movement variables")]
     [SerializeField] private float _walkingSpeed = 4;
     [SerializeField] private float _runningSpeed = 8;
+    [SerializeField] private float _shimmySpeed = 1f;
     [Tooltip("Parameter used in lerping between different speeds. 1 is instant, 0 is infinite")]
     [Range(0.01f, 1f)]
     [SerializeField] private float _speedSmoothing = 0.1f;
@@ -50,7 +52,8 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     [Header("Miscellaneous")]
     [SerializeField] private float _stableGroundThreshold;
     [SerializeField] private float _maxEdgeSnappingAngle;
-    [SerializeField] private float _shimmyAngleTolerance = 5f;
+    [SerializeField] private float _shimmyAngleTolerance;
+    [SerializeField] private float _ledgeHangLevel;
 
 
     private float _gravityMagnitude;
@@ -72,6 +75,7 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
     private Vector2 _movementInput;
 
     // Movement tracking
+    private Vector3 _worldInputVector = new();
     private Vector3 _worldInputVectorPersist = new();
     private float _appliedSpeed = 0f;
 
@@ -134,10 +138,10 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
 
 
         // Determine input vector in world coordinates based on camera orientation
-        Vector3 worldInputVector = GetWorldFromInput(appliedInput, _camera);
+        _worldInputVector = GetWorldFromInput(appliedInput, _camera);
 
         // Keeps track of the previous input vector if player is stationary
-        if (inputState.IsMoving) _worldInputVectorPersist = worldInputVector;
+        if (inputState.IsMoving) _worldInputVectorPersist = _worldInputVector;
 
 
         // Determine movement mode
@@ -146,7 +150,7 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
         else _movementMode = MovementMode.AIRBORNE;
 
         // Handle Movement velocity
-        inputState.MovementVelocity = GetMovementFromMode(_movementMode, worldInputVector, inputState);
+        inputState.MovementVelocity = GetMovementFromMode(_movementMode, _worldInputVector, inputState);
         inputState.ReleaseFromLedge = _releaseFromLedge;
 
         // Handle Rotation
@@ -216,7 +220,7 @@ public class PlayerInputHandler : MonoBehaviour, ICharacterController
                     inputVector = inputVector.With(_body.LedgeNormal, 0f);
                 }
 
-                movementVelocity = inputVector * _appliedSpeed;
+                movementVelocity = inputVector * _shimmySpeed;
                 break;
             }
 

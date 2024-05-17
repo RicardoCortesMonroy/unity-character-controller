@@ -5,6 +5,12 @@ using UnityEditor.U2D;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+
+// The gameobject this script is attached to should be:
+//  1. The child of an object containing the kinematic body and input handler
+//  2. The parent of the root of the armature
+//  3. The parent of the gameObject containing the mesh
+
 public class PlayerAnimationHandler : MonoBehaviour
 {
     [SerializeField] float _speed = 0.1f;
@@ -50,13 +56,26 @@ public class PlayerAnimationHandler : MonoBehaviour
         }
 
 
+        bool movingLeft = Vector3.Dot(_input.WorldInput, transform.right) < Mathf.Epsilon;
+        bool flip = movingLeft && _input.KinematicBody.IsHangingOnLedge;
+        FlipCharacterHorizontal(flip);
+
+
         _animator.SetFloat("Movement", blend);
         _animator.SetBool("IsWalkingOnGround", _isMovingOnGround);
         _animator.SetBool("IsOnStableGround", _input.KinematicBody.IsOnStableGround);
-        
+        _animator.SetBool("IsHangingOnLedge", _input.KinematicBody.IsHangingOnLedge);
+        _animator.SetBool("IsMoving", speed > Mathf.Epsilon);
+
         Vector3 localUpwards = _input.KinematicBody.LocalUpwards;
         bool isFalling = Vector3.Dot(_input.KinematicBody.ForceVelocity.AppliedVelocity, localUpwards) < 0f;
         _animator.SetBool("IsFalling", isFalling);
+    }
+
+    private void FlipCharacterHorizontal(bool flip)
+    {
+        float scaleX = flip ? -1f : 1f;
+        transform.localScale = new Vector3(scaleX, 1f, 1f);
     }
 
     Vector2 intervalRange = new Vector2(5f, 10f);

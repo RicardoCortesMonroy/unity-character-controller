@@ -113,11 +113,16 @@ public class KinematicBody : MonoBehaviour
     private LayerMask _sceneLayer;
 
     // Ledge grabbing
-    private float _ledgeGrabbingReach = 0.5f;
-    private float _ledgeGrabHangLevel = 0.7f; // fraction along the capsule at which it hangs, 1 being the top and 0 the bottom.
-                                              // Think of it as an "eye level" if the capsule was looking flush with the top of the ledge
-    private float _ledgeTopAngleTolerance = 15f; // deg
-    private float _ledgeEdgeAngleMaximum = 95f;
+    [Header("Ledge Grabbing")]
+    [Tooltip("fraction along the capsule at which it hangs, 1 being the top and 0 the bottom. Think of it as an \"eye level\" if the capsule was looking flush with the top of the ledge")]
+    [Range(0f, 2f)]
+    [SerializeField] private float _ledgeGrabHangLevel = 0.7f;
+    [Tooltip("How far above the hang level that the player can detect a ledge")]
+    [SerializeField] private float _ledgeGrabbingVerticalReach = 1f;
+    [Tooltip("How far infront the player can detect a ledge")]
+    [SerializeField] private float _ledgeGrabbingHorizontalReach = 0.5f;
+    [SerializeField] private float _ledgeTopAngleTolerance = 15f;
+    [SerializeField] private float _ledgeEdgeAngleMaximum = 95f;
 
     // Debug variables
     [Space(20)]
@@ -335,20 +340,19 @@ public class KinematicBody : MonoBehaviour
     public void Simulate()
     {
         // Rotation
-        if (_inputState.IsMoving)
+        if (_inputState.IsMoving || IsHangingOnLedge)
         {
             _lookToVector = _inputState.LookToVector.With(_localUpwards, 0f).normalized;
         }
-        else
+        
+        if (!_inputState.IsMoving && _currentMover != null)
         {
-            if (_currentMover != null)
-            {
-                Vector3 appliedAngularVelocity = _currentMover.AngularVelocity.GetComponent(_localUpwards);
-                _lookToVector = Quaternion.Euler(Mathf.Rad2Deg * Time.fixedDeltaTime * appliedAngularVelocity) * _lookToVector;
-            }
-            // If local upwards changes, maintain orthogonality
-            _lookToVector = Vector3.Cross(_localUpwards, Vector3.Cross(_lookToVector, _localUpwards)).normalized;
+            Vector3 appliedAngularVelocity = _currentMover.AngularVelocity.GetComponent(_localUpwards);
+            _lookToVector = Quaternion.Euler(Mathf.Rad2Deg * Time.fixedDeltaTime * appliedAngularVelocity) * _lookToVector;
         }
+
+        // If local upwards changes, maintain orthogonality
+        _lookToVector = Vector3.Cross(_localUpwards, Vector3.Cross(_lookToVector, _localUpwards)).normalized;
         _transientRotation = Quaternion.LookRotation(_lookToVector, _localUpwards);
 
 
@@ -444,44 +448,44 @@ public class KinematicBody : MonoBehaviour
     {
         _stateLog.PostLedgeGrabPosition = _transientPosition;
 
+        // Don't ledge grab if you're initiating an impulse (jump)
+        if (_isImpulseThisFrame) return;
+
         // Only ledge grab if body is falling (using epsilon value for floating point error)
         // or if already ledge grabbing
+        // or if you're starting an impulse (jump)
         bool canLedgeGrab = !IsOnStableGround && Vector3.Dot(_appliedSweepVelocity, _localUpwards) <= 0.001f;
         if (!canLedgeGrab && !_wasHangingInPreviousFrame) return;
 
+       
 
         // Cast first ray to detect if ledge is present
-        Vector3 raycastOrigin = _transientPosition + (_collider.radius + _ledgeGrabbingReach) * _lookToVector + _collider.height * _localUpwards;
+        Vector3 raycastOrigin = _transientPosition + (_collider.radius + _ledgeGrabbingHorizontalReach) * _lookToVector 
+                                                   + (_collider.height * _ledgeGrabHangLevel + 0.01f) * _localUpwards;
         bool didCastHit = Physics.Raycast(
-            raycastOrigin,
-            -_localUpwards,
-            out RaycastHit ledgeTopHit,
-            0.5f * _collider.height,
-            _sceneLayer
+            origin: raycastOrigin,
+            direction: -_localUpwards,
+            hitInfo: out RaycastHit ledgeTopHit,
+            maxDistance: _ledgeGrabbingVerticalReach,
+            layerMask: _sceneLayer
             );
 
         if (_showPostLedgeGrabPosition)
         {
-            Debug.DrawRay(raycastOrigin, 0.5f * _collider.height * -_localUpwards, Color.blue);
+            Debug.DrawRay(raycastOrigin, _ledgeGrabbingVerticalReach * -_localUpwards, Color.blue);
         }
 
         // Terminate ledge grabbing if no ledge is present
         if (!didCastHit) return;
-        else
-        {
-            IsHangingOnLedge = true;
-            GroundNormal = ledgeTopHit.normal;
-            RegisterMover(ledgeTopHit.collider);
-        }
 
         // Is the ledge flat enough to be considered a valid ledge
         float groundAngle = Vector3.Angle(_localUpwards, ledgeTopHit.normal);
         if (groundAngle > _ledgeTopAngleTolerance) return;
 
-        // No need to snap if we're already hanging
-        // EXCEPT if we're on a rotating mover, in which case we have to make sure we update the snapping and normal
-        bool onRotatingMover = _currentMover != null && _currentMover.AngularVelocity != Vector3.zero;
-        if (_wasHangingInPreviousFrame && !onRotatingMover) return;
+        //// No need to snap if we're already hanging
+        //// EXCEPT if we're on a rotating mover, in which case we have to make sure we update the snapping and normal
+        //bool onRotatingMover = _currentMover != null && _currentMover.AngularVelocity != Vector3.zero;
+        //if (_wasHangingInPreviousFrame && !onRotatingMover) return;
 
 
 
@@ -489,25 +493,20 @@ public class KinematicBody : MonoBehaviour
 
         float projectedDistanceToHitPoint = (ledgeTopHit.point - _transientPosition).GetComponent(_lookToVector).magnitude;
 
-        Vector3 capsuleTopHemi = (_collider.height - _collider.radius) * _localUpwards;
-        Vector3 capsuleBottomHemi = (_collider.radius * _localUpwards);
+
+        Vector3 hangLevelPointAlongAxis = _transientPosition + _ledgeGrabHangLevel * _collider.height * _localUpwards;
+        //Vector3 capsuleTopHemi = (_collider.height - _collider.radius) * _localUpwards;
+        Vector3 capsuleBottomHemi = _transientPosition + (_collider.radius * _localUpwards);
 
         int nbHits = Physics.CapsuleCastNonAlloc(
-            point1: _transientPosition + capsuleTopHemi,
-            point2: _transientPosition + capsuleBottomHemi,
+            point1: hangLevelPointAlongAxis,
+            point2: capsuleBottomHemi,
             radius: _collider.radius,
             direction: _lookToVector,
             maxDistance: projectedDistanceToHitPoint,
             results: _sweepHits,
             layerMask: _sceneLayer
         );
-
-        // Something has gone wrong if the cast fails
-        if (nbHits == 0)
-        {
-            Debug.LogError("Ledge sweep cast failed");
-            return;
-        }
 
         RaycastHit closestHit = _sweepHits[0];
 
@@ -519,6 +518,12 @@ public class KinematicBody : MonoBehaviour
             }
         }
 
+        // If the sweep cast doesn't hit the same collider as the raycast, the ledge is invalid
+        if (nbHits == 0 || closestHit.collider != ledgeTopHit.collider)
+        {
+            return;
+        }
+
         // Make sure the side of ledge is vertical enough for it to be considered a valid ledge
         float ledgeSideAngle = Vector3.Angle(closestHit.normal, ledgeTopHit.normal);
         if (ledgeSideAngle > _ledgeEdgeAngleMaximum) return;
@@ -527,7 +532,6 @@ public class KinematicBody : MonoBehaviour
         Vector3 horizontalSnapping = closestHit.distance * _lookToVector + _colliderMargin * closestHit.normal;
 
         // Vertical snapping
-        Vector3 hangLevelPointAlongAxis = _transientPosition + _ledgeGrabHangLevel * _collider.height * _localUpwards;
         Vector3 verticalSnapping = (ledgeTopHit.point - hangLevelPointAlongAxis).GetComponent(_localUpwards);
 
 
@@ -536,8 +540,13 @@ public class KinematicBody : MonoBehaviour
         LedgeNormal = closestHit.normal;
         ForceVelocity.SetVelocity(Vector3.zero);
 
-        // Register mover and anticipate ledge normal rotation for next frame
+
+        // Register mover 
+        IsHangingOnLedge = true;
+        GroundNormal = ledgeTopHit.normal;
         RegisterMover(closestHit.collider);
+
+        // If mover is rotating, then anticipate ledge normal rotation for next frame
         if (_currentMover != null && _currentMover.AngularVelocity != Vector3.zero)
         {
             LedgeNormal = Quaternion.Euler(Mathf.Rad2Deg * Time.fixedDeltaTime * _currentMover.AngularVelocity) * LedgeNormal;
